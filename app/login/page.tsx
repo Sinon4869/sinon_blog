@@ -1,14 +1,26 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState('');
+  const [oauthError, setOauthError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('error');
+    if (!code) return;
+    if (code.includes('OAuthAccountNotLinked'))
+      return setOauthError('该邮箱已存在密码账号，请先用密码登录后再绑定 Google。');
+    if (code.includes('AccessDenied')) return setOauthError('Google 登录被拒绝，请确认该 Google 账号邮箱已验证。');
+    if (code.includes('EmailNotVerified')) return setOauthError('Google 邮箱未验证，请先在 Google 完成邮箱验证。');
+    if (code.includes('D1_ERROR')) return setOauthError('服务器数据库暂时异常，请稍后重试。');
+    setOauthError(`登录失败（${code}）`);
+  }, []);
 
   return (
     <div className="mx-auto max-w-md">
@@ -49,20 +61,13 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2">
           <button
             className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => signIn('google')}
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
             type="button"
           >
             使用 Google 登录
-          </button>
-          <button
-            className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => signIn('github')}
-            type="button"
-          >
-            使用 GitHub 登录
           </button>
         </div>
 
@@ -73,7 +78,9 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {(error || oauthError) && (
+          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error || oauthError}</p>
+        )}
       </div>
     </div>
   );

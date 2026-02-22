@@ -39,20 +39,32 @@ export const prisma = {
   user: {
     async findUnique({ where }: any) {
       if (where?.id) return one('SELECT * FROM users WHERE id = ?', where.id);
-      if (where?.email) return one('SELECT * FROM users WHERE email = ?', where.email);
+      if (where?.email) return one('SELECT * FROM users WHERE email = ?', where.email.toLowerCase());
       return null;
+    },
+    async findMany({ select, orderBy }: any = {}) {
+      const orderSql = orderBy?.createdAt === 'asc' ? 'ORDER BY createdAt ASC' : 'ORDER BY createdAt DESC';
+      const rows = await many(`SELECT * FROM users ${orderSql}`);
+      if (!select) return rows;
+      return rows.map((u: any) => {
+        const out: any = {};
+        for (const key of Object.keys(select)) if (select[key]) out[key] = u[key];
+        return out;
+      });
     },
     async create({ data }: any) {
       const id = cuidLike();
       await run(
-        'INSERT INTO users (id, name, email, password, image, bio, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        'INSERT INTO users (id, name, email, emailVerified, password, image, bio, role, disabled, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
         id,
         data.name ?? null,
-        data.email,
+        (data.email || '').toLowerCase(),
+        data.emailVerified ?? null,
         data.password ?? null,
         data.image ?? null,
         data.bio ?? null,
-        data.role ?? 'USER'
+        data.role ?? 'USER',
+        data.disabled ? 1 : 0
       );
       return (await one('SELECT * FROM users WHERE id = ?', id)) as any;
     },
@@ -67,7 +79,7 @@ export const prisma = {
       const fields = Object.keys(data || {});
       if (!where?.email || !fields.length) return { count: 0 };
       const set = fields.map((f) => `${f} = ?`).join(', ');
-      const rs = await run(`UPDATE users SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE email = ?`, ...fields.map((f) => data[f]), where.email);
+      const rs = await run(`UPDATE users SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE email = ?`, ...fields.map((f) => data[f]), where.email.toLowerCase());
       return { count: rs?.meta?.changes ?? 0 };
     },
     async delete({ where }: any) {
@@ -77,6 +89,46 @@ export const prisma = {
     async count() {
       const r = await one<{ c: number }>('SELECT COUNT(*) as c FROM users');
       return r?.c ?? 0;
+    }
+  },
+  account: {
+    async findUnique({ where }: any) {
+      const key = where?.provider_providerAccountId;
+      if (!key) return null;
+      return one('SELECT * FROM accounts WHERE provider = ? AND providerAccountId = ?', key.provider, key.providerAccountId);
+    },
+    async create({ data }: any) {
+      const id = cuidLike();
+      await run(
+        `INSERT INTO accounts (id, userId, type, provider, providerAccountId, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        data.userId,
+        data.type,
+        data.provider,
+        data.providerAccountId,
+        data.refresh_token ?? null,
+        data.access_token ?? null,
+        data.expires_at ?? null,
+        data.token_type ?? null,
+        data.scope ?? null,
+        data.id_token ?? null,
+        data.session_state ?? null
+      );
+      return one('SELECT * FROM accounts WHERE id = ?', id);
+    },
+    async update({ where, data }: any) {
+      const key = where?.provider_providerAccountId;
+      const fields = Object.keys(data || {});
+      if (!key || !fields.length) return null;
+      const set = fields.map((f) => `${f} = ?`).join(', ');
+      await run(
+        `UPDATE accounts SET ${set} WHERE provider = ? AND providerAccountId = ?`,
+        ...fields.map((f) => data[f]),
+        key.provider,
+        key.providerAccountId
+      );
+      return this.findUnique({ where });
     }
   },
   post: {
