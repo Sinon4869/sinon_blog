@@ -25,16 +25,27 @@ jobs:
       - name: Pin npm version (stability)
         run: npm i -g npm@10.8.2
 
-      - name: Show runtime versions
-        run: node -v && npm -v
+      - name: Enable Corepack (pnpm fallback)
+        run: corepack enable
 
-      - name: Install dependencies (with fallback)
+      - name: Show runtime versions
+        run: node -v && npm -v && corepack --version
+
+      - name: Install dependencies (npm -> pnpm fallback)
         run: |
+          set -e
           npm config set fetch-retries 5
           npm config set fetch-retry-factor 2
           npm config set fetch-retry-maxtimeout 120000
           npm config set progress false
-          npm install --no-audit --no-fund || npm install --no-audit --no-fund --omit=optional
+          if npm install --no-audit --no-fund; then
+            echo "npm install ok"
+          else
+            echo "npm install failed, fallback to pnpm"
+            npm cache clean --force || true
+            corepack prepare pnpm@9.15.4 --activate
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Deploy main (production)
         if: github.ref == 'refs/heads/main'
