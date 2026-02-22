@@ -15,7 +15,7 @@
 - [x] 部署流程加入 migration apply（dev/prod 区分）
 - [x] 统一 NextAuth 错误码（OAuthAccountNotLinked / EmailNotVerified / D1_ERROR）
 - [x] 登录失败页面展示可读错误与下一步操作
-- [ ] 添加认证审计日志（不记录敏感 token）
+- [x] 添加认证审计日志（不记录敏感 token）
 - [x] 固定 CI 工具链（Node + pnpm + lockfile）
 - [x] 加部署后 smoke test：`/` `/login` `/api/auth/signin/google`
 - [x] 统一 secrets 命名并文档化：`CF_API_TOKEN` `CF_ACCOUNT_ID`
