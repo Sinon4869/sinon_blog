@@ -4,7 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'Modern Blog',
+  title: 'Komorebi',
   description: 'Next.js 14 现代博客系统'
 };
 

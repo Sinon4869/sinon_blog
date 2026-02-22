@@ -1,4 +1,4 @@
-# Modern Blog（D1 本地启动指南）
+# Komorebi（D1 本地启动指南）
 
 本项目已切换为 **Cloudflare Workers + D1** 数据层。
 
@@ -29,11 +29,14 @@ cp .env.example .env
 ## 4) 初始化 D1 数据库
 
 ```bash
-# 远端（Cloudflare）
-wrangler d1 execute modern-blog-db --remote --file=./d1/schema.sql
+# 远端（Cloudflare，生产）
+wrangler d1 execute 1acc05d4-49bb-4306-8115-5646a945dc9c --remote --file=./d1/schema.sql
+
+# 远端（Cloudflare，开发）
+wrangler d1 execute b188ca51-b44e-48c5-8463-baf3091fc279 --remote --file=./d1/schema.sql
 
 # 本地（可选）
-wrangler d1 execute modern-blog-db --local --file=./d1/schema.sql
+wrangler d1 execute --local --file=./d1/schema.sql
 ```
 
 ## 5) 本地预览（Workers 形态）

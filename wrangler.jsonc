@@ -23,7 +23,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "modern-blog-db",
+      "database_name": "komorebi-db",
       "database_id": "1acc05d4-49bb-4306-8115-5646a945dc9c"
     }
   ],
@@ -45,7 +45,7 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "modern-blog-dev-db",
+          "database_name": "komorebi-dev-db",
           "database_id": "b188ca51-b44e-48c5-8463-baf3091fc279"
         }
       ]

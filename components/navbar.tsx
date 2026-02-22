@@ -16,7 +16,7 @@ export async function Navbar() {
     <header className="sticky top-0 z-30 border-b bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="text-base font-bold sm:text-lg">
-          Modern Blog
+          Komorebi
         </Link>
 
         {/* Desktop nav */}

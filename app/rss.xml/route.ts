@@ -20,9 +20,9 @@ export async function GET() {
 
   const xml = `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0"><channel>
-<title>Modern Blog RSS</title>
+<title>Komorebi RSS</title>
 <link>${base}</link>
-<description>Modern Blog Feed</description>
+<description>Komorebi Feed</description>
 ${items}
 </channel></rss>`;
 
