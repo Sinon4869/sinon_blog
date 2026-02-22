@@ -1,5 +1,5 @@
 {
-  "name": "modern-blog",
+  "name": "komorebi",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,11 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "preview:dev": "opennextjs-cloudflare build && opennextjs-cloudflare preview --env dev",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy:dev": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --env dev",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cf-typegen:dev": "wrangler types --env dev --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.16.5",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
@@ -26,7 +30,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.16.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.14",

@@ -22,11 +22,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies (include dev deps)
-        run: npm install --include=dev --no-audit --no-fund
-
-      - name: Verify OpenNext CLI
-        run: npx opennextjs-cloudflare --version
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
 
       - name: Deploy main (production)
         if: github.ref == 'refs/heads/main'
