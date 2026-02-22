@@ -49,20 +49,13 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2">
           <button
             className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => signIn('google')}
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
             type="button"
           >
             使用 Google 登录
-          </button>
-          <button
-            className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50"
-            onClick={() => signIn('github')}
-            type="button"
-          >
-            使用 GitHub 登录
           </button>
         </div>
 

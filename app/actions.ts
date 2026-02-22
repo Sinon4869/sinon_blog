@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { compare, hash } from 'bcryptjs';
+import { z } from 'zod';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -14,6 +15,12 @@ async function requireUser() {
   if (!session?.user?.id) throw new Error('请先登录');
   return session.user;
 }
+
+const profileSchema = z.object({
+  name: z.string().trim().max(50).optional(),
+  bio: z.string().trim().max(500).optional(),
+  image: z.string().trim().url('头像必须是有效 URL').optional().or(z.literal(''))
+});
 
 export async function savePost(formData: FormData) {
   const user = await requireUser();
@@ -89,12 +96,20 @@ export async function deletePost(formData: FormData) {
 
 export async function saveProfile(formData: FormData) {
   const user = await requireUser();
-  const name = formData.get('name')?.toString() ?? '';
-  const bio = formData.get('bio')?.toString() ?? '';
+  const parsed = profileSchema.safeParse({
+    name: formData.get('name')?.toString() ?? '',
+    bio: formData.get('bio')?.toString() ?? '',
+    image: formData.get('image')?.toString() ?? ''
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || '资料格式错误');
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { name, bio }
+    data: {
+      name: parsed.data.name || null,
+      bio: parsed.data.bio || null,
+      image: parsed.data.image || null
+    }
   });
 
   revalidatePath(`/profile/${user.id}`);

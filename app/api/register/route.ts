@@ -13,14 +13,15 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const payload = schema.parse(await req.json());
-    const exists = await prisma.user.findUnique({ where: { email: payload.email } });
+    const email = payload.email.toLowerCase();
+    const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return NextResponse.json({ error: '邮箱已注册' }, { status: 400 });
 
     const password = await hash(payload.password, 10);
     await prisma.user.create({
       data: {
         name: payload.name,
-        email: payload.email,
+        email,
         password
       }
     });
