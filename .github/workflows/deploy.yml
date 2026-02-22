@@ -30,11 +30,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CF_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PROD_CF_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-        run: npm run deploy
+        run: npx -y @opennextjs/cloudflare@1.16.5 build && npx -y @opennextjs/cloudflare@1.16.5 deploy
 
       - name: Deploy dev (staging)
         if: github.ref == 'refs/heads/dev'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.DEV_CF_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.DEV_CF_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-        run: npm run deploy:dev
+        run: npx -y @opennextjs/cloudflare@1.16.5 build && npx -y @opennextjs/cloudflare@1.16.5 deploy --env dev
