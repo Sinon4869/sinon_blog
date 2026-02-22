@@ -3,7 +3,6 @@ node_modules
 .env
 .env.local
 *.log
-prisma/dev.db
 
 # OpenNext
 .open-next

@@ -1,91 +1,49 @@
-# Modern Blog（本地启动指南）
+# Modern Blog（D1 本地启动指南）
 
-这是一个基于 Next.js + TypeScript + Tailwind + Prisma + PostgreSQL + Auth.js 的博客项目。
+本项目已切换为 **Cloudflare Workers + D1** 数据层。
 
-> 本 README 仅保留**本地开发启动**说明。
-
----
-
-## 1. 环境要求
-
-- Node.js 20+
-- npm 10+
-- PostgreSQL（本机安装或 Docker）
-
----
-
-## 2. 安装依赖
+## 1) 安装依赖
 
 ```bash
 cd /data/sinon_blog
 npm install
 ```
 
----
-
-## 3. 配置环境变量
+## 2) 配置环境变量
 
 ```bash
 cp .env.example .env
 ```
 
-至少需要配置以下变量：
+至少设置：
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`（本地可用 `http://localhost:3000`）
+- `NEXT_PUBLIC_SITE_URL`（本地可用 `http://localhost:3000`）
 
-- `DATABASE_URL`
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
-- `NEXT_PUBLIC_SITE_URL`
+## 3) 配置 D1 绑定
 
-本地开发可参考：
+在 `wrangler.jsonc` 里确认：
+- `d1_databases[0].binding = "DB"`
+- `database_id` 改成你的真实 D1 ID
 
-```env
-NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
----
-
-## 4. 启动 PostgreSQL
-
-### 方式 A：本机 PostgreSQL
-
-确保 `DATABASE_URL` 指向可访问的本机数据库。
-
-### 方式 B：Docker（仅数据库）
+## 4) 初始化 D1 数据库
 
 ```bash
-docker compose up -d db
+# 远端（Cloudflare）
+wrangler d1 execute modern-blog-db --remote --file=./d1/schema.sql
+
+# 本地（可选）
+wrangler d1 execute modern-blog-db --local --file=./d1/schema.sql
 ```
 
----
-
-## 5. 初始化数据库
+## 5) 本地预览（Workers 形态）
 
 ```bash
-npm run prisma:generate
-npm run db:push
-npm run db:seed
+npm run preview
 ```
 
----
-
-## 6. 启动项目
+## 6) 部署
 
 ```bash
-npm run dev
-```
-
-访问：<http://localhost:3000>
-
----
-
-## 7. 常用命令
-
-```bash
-npm run dev            # 开发模式
-npm run build          # 生产构建
-npm run start          # 生产启动
-npm run prisma:generate
-npm run db:push
-npm run db:seed
+npm run deploy
 ```
