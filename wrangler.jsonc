@@ -1,9 +1,15 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "modern-blog",
+  "name": "komorebi",
   "compatibility_date": "2026-02-22",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "routes": [
+    {
+      "pattern": "sinon.live/*",
+      "zone_name": "sinon.live"
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -11,7 +17,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "modern-blog"
+      "service": "komorebi"
     }
   ],
   "d1_databases": [
@@ -20,5 +26,29 @@
       "database_name": "modern-blog-db",
       "database_id": "1acc05d4-49bb-4306-8115-5646a945dc9c"
     }
-  ]
+  ],
+  "env": {
+    "dev": {
+      "name": "komorebi-dev",
+      "routes": [
+        {
+          "pattern": "dev.sinon.live/*",
+          "zone_name": "sinon.live"
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "komorebi-dev"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "modern-blog-dev-db",
+          "database_id": "b188ca51-b44e-48c5-8463-baf3091fc279"
+        }
+      ]
+    }
+  }
 }
