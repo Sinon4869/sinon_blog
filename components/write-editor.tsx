@@ -14,7 +14,7 @@ type WriteEditorProps = {
   };
 };
 
-const DRAFT_PREFIX = 'modern-blog:draft:';
+const DRAFT_PREFIX = 'komorebi:draft:';
 
 function estimateReadingTime(text: string) {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
