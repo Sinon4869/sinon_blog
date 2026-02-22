@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: modern-blog-config
+  namespace: modern-blog
+data:
+  NEXT_PUBLIC_SITE_URL: "https://blog.sinon.live"
+  NEXTAUTH_URL: "https://blog.sinon.live"

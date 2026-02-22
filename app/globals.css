@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.container-page {
+  @apply mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-8;
+}
+
+.btn {
+  @apply rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700;
+}
+
+.input {
+  @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base sm:text-sm focus:border-zinc-500 focus:outline-none;
+}
+
+.card {
+  @apply rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5;
+}

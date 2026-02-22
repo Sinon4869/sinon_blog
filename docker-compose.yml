@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16
+    container_name: modern_blog_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: modern_blog
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: blog123
+    ports:
+      - '5432:5432'
+    volumes:
+      - modern_blog_pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: modern_blog_app
+    depends_on:
+      - db
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    command: sh -c "npx prisma db push && npm run db:seed && npm run start"
+
+volumes:
+  modern_blog_pgdata:

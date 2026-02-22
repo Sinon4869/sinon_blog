@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: modern-blog
+  namespace: modern-blog
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-dns-cloudflare
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - blog.sinon.live
+      secretName: modern-blog-tls
+  rules:
+    - host: blog.sinon.live
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: modern-blog
+                port:
+                  number: 80
