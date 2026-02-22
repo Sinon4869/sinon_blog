@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
@@ -7,10 +8,11 @@ import { formatDate } from '@/lib/utils';
 import { authOptions } from '@/lib/auth';
 import { toggleFavorite } from '@/app/actions';
 
-export default async function PostDetail({ params }: { params: { slug: string } }) {
+export default async function PostDetail({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const session = await getServerSession(authOptions);
   const post = await prisma.post.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: {
       author: true,
       tags: { include: { tag: true } },
@@ -64,7 +66,7 @@ export default async function PostDetail({ params }: { params: { slug: string } 
           </form>
         )}
         <div className="space-y-2">
-          {post.comments.map((c) => (
+          {post.comments.map((c: any) => (
             <div className="card" key={c.id}>
               <p className="text-sm text-zinc-500">{c.user.name || c.user.email}</p>
               <p>{c.content}</p>

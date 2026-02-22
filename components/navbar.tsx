@@ -1,10 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 
 export async function Navbar() {
-  const session = await getServerSession(authOptions);
+  let session: any = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-white/80">

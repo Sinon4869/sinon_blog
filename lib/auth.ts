@@ -1,9 +1,7 @@
-import { PrismaAdapter } from '@auth/prisma-adapter';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { compare } from 'bcryptjs';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import GitHubProvider from 'next-auth/providers/github';
-import GoogleProvider from 'next-auth/providers/google';
 
 import { prisma } from './prisma';
 
@@ -13,8 +11,7 @@ const adminEmails = (process.env.ADMIN_EMAILS || '')
   .filter(Boolean);
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  session: { strategy: 'database' },
+  session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [
     CredentialsProvider({
@@ -32,48 +29,33 @@ export const authOptions: NextAuthOptions = {
         const valid = await compare(credentials.password, user.password);
         if (!valid) return null;
 
+        const role = adminEmails.includes(user.email.toLowerCase()) ? 'ADMIN' : user.role;
+        if (role !== user.role) {
+          await prisma.user.updateMany({ where: { email: user.email.toLowerCase() }, data: { role } });
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role
-        };
+          role
+        } as any;
       }
-    }),
-    ...(process.env.GITHUB_ID && process.env.GITHUB_SECRET
-      ? [
-          GitHubProvider({
-            clientId: process.env.GITHUB_ID,
-            clientSecret: process.env.GITHUB_SECRET
-          })
-        ]
-      : []),
-    ...(process.env.GOOGLE_ID && process.env.GOOGLE_SECRET
-      ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_ID,
-            clientSecret: process.env.GOOGLE_SECRET
-          })
-        ]
-      : [])
+    })
   ],
   callbacks: {
-    async signIn({ user }) {
-      if (!user.email) return true;
-      const email = user.email.toLowerCase();
-      if (!adminEmails.includes(email)) return true;
-
-      await prisma.user.updateMany({
-        where: { email },
-        data: { role: 'ADMIN' }
-      });
-      return true;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = (user as any).id;
+        token.role = (user as any).role || 'USER';
+      }
+      return token;
     },
-    async session({ session, user }) {
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
-        session.user.role = (user as { role?: string }).role;
+        session.user.id = token.id as string;
+        session.user.role = (token.role as string) || 'USER';
       }
       return session;
     }

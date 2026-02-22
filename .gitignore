@@ -4,3 +4,12 @@ node_modules
 .env.local
 *.log
 prisma/dev.db
+
+# OpenNext
+.open-next
+
+# Cloudflare / local artifacts
+.dev.vars
+.wrangler
+.vercel
+.trash

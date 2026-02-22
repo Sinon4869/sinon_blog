@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -12,10 +13,11 @@ type HomeSearchParams = {
   page?: string;
 };
 
-export default async function HomePage({ searchParams }: { searchParams: HomeSearchParams }) {
-  const q = (searchParams.q || '').trim();
-  const tag = (searchParams.tag || '').trim();
-  const page = Math.max(1, Number(searchParams.page || '1') || 1);
+export default async function HomePage({ searchParams }: { searchParams: Promise<HomeSearchParams> }) {
+  const sp = await searchParams;
+  const q = (sp.q || '').trim();
+  const tag = (sp.tag || '').trim();
+  const page = Math.max(1, Number(sp.page || '1') || 1);
 
   const where = {
     published: true,
@@ -35,30 +37,39 @@ export default async function HomePage({ searchParams }: { searchParams: HomeSea
       : {})
   };
 
-  const [posts, total, tags] = await Promise.all([
-    prisma.post.findMany({
-      where,
-      orderBy: { publishedAt: 'desc' },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        excerpt: true,
-        publishedAt: true,
-        createdAt: true,
-        author: { select: { name: true, email: true } },
-        tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
-      }
-    }),
-    prisma.post.count({ where }),
-    prisma.tag.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, slug: true },
-      take: 30
-    })
-  ]);
+  let posts: any[] = [];
+  let total = 0;
+  let tags: any[] = [];
+  try {
+    [posts, total, tags] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: { publishedAt: 'desc' },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          publishedAt: true,
+          createdAt: true,
+          author: { select: { name: true, email: true } },
+          tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+        }
+      }),
+      prisma.post.count({ where }),
+      prisma.tag.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, slug: true },
+        take: 30
+      })
+    ]);
+  } catch {
+    posts = [];
+    total = 0;
+    tags = [];
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -107,7 +118,7 @@ export default async function HomePage({ searchParams }: { searchParams: HomeSea
           </p>
           <p className="mt-2 text-zinc-700">{post.excerpt || '暂无摘要'}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {post.tags.map((t) => (
+            {post.tags.map((t: any) => (
               <span key={t.tag.id} className="rounded bg-zinc-100 px-2 py-1 text-xs">
                 #{t.tag.name}
               </span>

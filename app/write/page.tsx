@@ -6,13 +6,14 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { WriteEditor } from '@/components/write-editor';
 
-export default async function WritePage({ searchParams }: { searchParams: { id?: string } }) {
+export default async function WritePage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
+  const sp = await searchParams;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
 
-  const post = searchParams.id
+  const post = sp.id
     ? await prisma.post.findUnique({
-        where: { id: searchParams.id },
+        where: { id: sp.id },
         include: { tags: { include: { tag: true } } }
       })
     : null;

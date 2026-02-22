@@ -5,12 +5,13 @@ import { saveProfile } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export default async function ProfilePage({ params }: { params: { id: string } }) {
+export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
-  if (session.user.id !== params.id && session.user.role !== 'ADMIN') redirect('/');
+  if (session.user.id !== id && session.user.role !== 'ADMIN') redirect('/');
 
-  const user = await prisma.user.findUnique({ where: { id: params.id } });
+  const user = await prisma.user.findUnique({ where: { id } });
   if (!user) redirect('/');
 
   return (
