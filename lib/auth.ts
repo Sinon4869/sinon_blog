@@ -58,6 +58,22 @@ export const authOptions: NextAuthOptions = {
         session.user.role = (token.role as string) || 'USER';
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      try {
+        const parsed = new URL(url, baseUrl);
+        const isLoginPath = parsed.pathname === '/login';
+        const callbackUrl = parsed.searchParams.get('callbackUrl') || '';
+
+        if (isLoginPath || callbackUrl.includes('/login')) {
+          return `${baseUrl}/dashboard`;
+        }
+
+        if (parsed.origin === new URL(baseUrl).origin) return parsed.toString();
+      } catch {
+        // ignore and fallback below
+      }
+      return `${baseUrl}/dashboard`;
     }
   }
 };
