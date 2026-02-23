@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 
 import { prisma } from '@/lib/prisma';
-import { formatDate } from '@/lib/utils';
+import { buildPostPath, formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 8;
 
@@ -140,7 +140,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           )}
           <div className="space-y-4 p-5 sm:p-8">
             <p className="text-xs tracking-[0.25em] text-zinc-500">FEATURED NOTE</p>
-            <Link href={`/posts/${featured.slug}`} className="block text-3xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-4xl">
+            <Link href={buildPostPath(featured) as Route} className="block text-3xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-4xl">
               {featured.title}
             </Link>
             <p className="text-sm leading-7 text-zinc-600">{featured.excerpt || '暂无摘要'}</p>
@@ -156,7 +156,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         {rest.map((post) => (
           <article key={post.id} className="rounded-2xl border border-[var(--line-soft)] bg-white/55 p-4 sm:p-5">
             <p className="text-xs tracking-[0.2em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
-            <Link href={`/posts/${post.slug}`} className="mt-2 block text-2xl font-semibold leading-snug text-zinc-800 hover:opacity-80 sm:text-3xl">
+            <Link href={buildPostPath(post) as Route} className="mt-2 block text-2xl font-semibold leading-snug text-zinc-800 hover:opacity-80 sm:text-3xl">
               {post.title}
             </Link>
             <p className="mt-2 text-sm leading-7 text-zinc-600 sm:text-base">{post.excerpt || '暂无摘要'}</p>

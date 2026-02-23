@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { slugify } from '@/lib/utils';
+import { buildPostPath, slugify } from '@/lib/utils';
 
 type DraftInput = {
   id?: string;
@@ -87,5 +87,5 @@ export async function POST(req: Request) {
     await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
   }
 
-  return Response.json({ ok: true, id: post.id, slug: post.slug });
+  return Response.json({ ok: true, id: post.id, slug: post.slug, path: buildPostPath(post) });
 }

@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { slugify } from '@/lib/utils';
+import { buildPostPath, slugify } from '@/lib/utils';
 
 async function requireUser() {
   const session = await getServerSession(authOptions);
@@ -92,7 +92,7 @@ export async function savePost(formData: FormData) {
 
   revalidatePath('/');
   revalidatePath('/dashboard');
-  revalidatePath(`/posts/${post.slug}`);
+  revalidatePath(buildPostPath(post));
 }
 
 export async function deletePost(formData: FormData) {
@@ -129,7 +129,7 @@ export async function setPostPublished(formData: FormData) {
 
   revalidatePath('/');
   revalidatePath('/dashboard');
-  if (post.slug) revalidatePath(`/posts/${post.slug}`);
+  if (post.slug) revalidatePath(buildPostPath(post));
 }
 
 export async function saveSiteConfig(formData: FormData) {
@@ -150,16 +150,6 @@ export async function saveSiteConfig(formData: FormData) {
 
   await prisma.setting.set('site_title', siteTitle);
   await prisma.setting.set('nav_categories', categoryNames.join(','));
-
-  for (const name of categoryNames) {
-    const slug = slugify(name);
-    if (!slug) continue;
-    await prisma.tag.upsert({
-      where: { slug },
-      update: { name },
-      create: { name, slug }
-    });
-  }
 
   revalidatePath('/');
   revalidatePath('/dashboard');
@@ -203,8 +193,11 @@ export async function toggleFavorite(formData: FormData) {
 
   revalidatePath('/dashboard');
   revalidatePath('/');
-  const post = await prisma.post.findUnique({ where: { id: postId }, select: { slug: true } });
-  if (post?.slug) revalidatePath(`/posts/${post.slug}`);
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { slug: true, publishedAt: true, createdAt: true }
+  });
+  if (post?.slug) revalidatePath(buildPostPath(post));
 }
 
 export async function updatePassword(formData: FormData) {

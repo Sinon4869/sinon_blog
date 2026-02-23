@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
@@ -38,9 +39,9 @@ export function WritePreviewClient({ draftRaw }: { draftRaw: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(draft)
       });
-      const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { slug?: string; path?: string; error?: string };
       if (!res.ok) throw new Error(data.error || '发布失败');
-      router.push(data.slug ? `/posts/${data.slug}` : '/dashboard');
+      router.push((data.path || (data.slug ? `/posts/${data.slug}` : '/dashboard')) as Route);
     } catch (e) {
       alert(e instanceof Error ? e.message : '发布失败');
     } finally {

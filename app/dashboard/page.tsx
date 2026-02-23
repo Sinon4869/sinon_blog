@@ -7,7 +7,7 @@ import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { formatDate } from '@/lib/utils';
+import { buildPostPath, formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 
@@ -190,7 +190,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <td className="px-4 py-3 text-zinc-600">{formatDate(post.updatedAt || post.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <Link href={`/posts/${post.slug}`} className="rounded border border-[var(--line-strong)] px-2 py-1 text-xs hover:bg-zinc-100">
+                      <Link href={buildPostPath(post) as Route} className="rounded border border-[var(--line-strong)] px-2 py-1 text-xs hover:bg-zinc-100">
                         查看
                       </Link>
                       <Link href={`/write?id=${post.id}`} className="rounded border border-[var(--line-strong)] px-2 py-1 text-xs hover:bg-zinc-100">

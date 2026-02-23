@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { buildPostPath } from '@/lib/utils';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -19,5 +20,5 @@ export async function POST(req: Request) {
 
   await prisma.comment.create({ data: { postId, content, userId: session.user.id } });
 
-  return NextResponse.redirect(new URL(`/posts/${post.slug}`, req.url));
+  return NextResponse.redirect(new URL(buildPostPath(post), req.url));
 }

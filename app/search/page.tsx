@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 
 import { prisma } from '@/lib/prisma';
-import { formatDate } from '@/lib/utils';
+import { buildPostPath, formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 
@@ -97,7 +97,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
       {posts.map((post: any) => (
         <article className="card" key={post.id}>
-          <Link className="text-lg font-semibold leading-snug hover:underline sm:text-xl" href={`/posts/${post.slug}`}>
+          <Link className="text-lg font-semibold leading-snug hover:underline sm:text-xl" href={buildPostPath(post) as Route}>
             {renderHighlighted(post.title || '', q)}
           </Link>
           <p className="mt-1 text-sm text-zinc-600">{formatDate(post.publishedAt || post.createdAt)}</p>

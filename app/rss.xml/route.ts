@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { buildPostPath } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET() {
       const image = (p as { cover_image?: string; background_image?: string }).cover_image || (p as { cover_image?: string; background_image?: string }).background_image;
       return `<item>
   <title><![CDATA[${p.title}]]></title>
-  <link>${base}/posts/${p.slug}</link>
+  <link>${base}${buildPostPath(p)}</link>
   <guid>${p.id}</guid>
   <pubDate>${(p.publishedAt || p.createdAt).toUTCString()}</pubDate>
   <description><![CDATA[${p.excerpt || ''}]]></description>
