@@ -164,11 +164,11 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-5 sm:p-7">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
-              <p className="text-xs tracking-[0.2em] text-zinc-500">ARTICLE</p>
+              <p className="text-xs tracking-[0.2em] text-zinc-500">正文</p>
               {session?.user && (
                 <form action={toggleFavorite}>
                   <input type="hidden" name="postId" value={post.id} />
@@ -223,7 +223,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(145deg,#faf9f5,#efebe2)] p-4 shadow-sm">
+          <div className="rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(145deg,#faf9f5,#efebe2)] p-4 shadow-sm shadow-zinc-900/5">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
                 {post.author.image ? (
@@ -237,7 +237,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
               </div>
               <div className="min-w-0">
                 <h4 className="truncate text-xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
-                <p className="text-xs tracking-[0.18em] text-zinc-500">AUTHOR CARD</p>
+                <p className="text-xs tracking-[0.18em] text-zinc-500">作者信息</p>
               </div>
             </div>
 
@@ -245,22 +245,22 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">Articles</p>
+                <p className="text-[11px] tracking-wide text-zinc-500">文章</p>
                 <p className="text-lg font-semibold text-zinc-800">{authorPostCount}</p>
               </div>
               <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">Tags</p>
+                <p className="text-[11px] tracking-wide text-zinc-500">标签</p>
                 <p className="text-lg font-semibold text-zinc-800">{globalTagCount}</p>
               </div>
               <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">Comments</p>
+                <p className="text-[11px] tracking-wide text-zinc-500">评论</p>
                 <p className="text-lg font-semibold text-zinc-800">{post.comments.length}</p>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[var(--line-soft)] bg-white/65 p-4">
-            <p className="text-xs tracking-[0.24em] text-zinc-500">IDENTITY</p>
+            <p className="text-xs tracking-[0.24em] text-zinc-500">文档信息</p>
             <p className="mt-2 text-sm leading-7 text-zinc-600">文档编号：{post.id}</p>
             <p className="text-sm leading-7 text-zinc-600">发布日期：{formatDate(post.publishedAt || post.createdAt)}</p>
           </div>

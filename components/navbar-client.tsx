@@ -45,20 +45,20 @@ export function NavbarClient({
   }, []);
 
   const navLink = (href: string) =>
-    `rounded-md px-2.5 py-1.5 transition-colors hover:bg-white/80 hover:text-zinc-900 ${
+    `rounded-md px-2.5 py-1.5 transition-all duration-300 hover:bg-white/80 hover:text-zinc-900 active:scale-[0.98] ${
       isActive(pathname, href) ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-700'
     }`;
 
   return (
     <header className="sticky top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),10px)] sm:px-5">
       <div
-        className={`mx-auto flex w-full max-w-[1320px] items-center justify-between rounded-2xl border border-[var(--line-soft)] bg-[rgba(247,246,242,0.82)] transition-all duration-300 backdrop-blur-xl ${
+        className={`mx-auto flex w-full max-w-[1400px] items-center justify-between rounded-2xl border border-[var(--line-soft)] bg-[rgba(247,246,242,0.82)] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] transition-all duration-300 backdrop-blur-xl ${
           hidden ? '-translate-y-24 opacity-0' : 'translate-y-0 opacity-100'
         } ${compact ? 'px-3 py-2 shadow-md shadow-zinc-900/5 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
       >
         <Link href="/" className="flex items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-200 text-sm">木</span>
-          <span className="text-2xl font-semibold leading-none tracking-tight sm:text-[30px]">{siteTitle}</span>
+          <span className="text-[28px] font-semibold leading-none tracking-tight">{siteTitle}</span>
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm md:flex">
@@ -120,7 +120,7 @@ export function NavbarClient({
         </nav>
 
         <details className="group relative md:hidden">
-          <summary className="list-none rounded-md border border-[var(--line-soft)] bg-[#f8f7f3] px-3 py-2 text-sm text-zinc-700">菜单</summary>
+            <summary className="list-none rounded-md border border-[var(--line-soft)] bg-[#f8f7f3] px-3 py-2 text-sm text-zinc-700 transition-all active:scale-[0.98]">菜单</summary>
           <nav className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border border-[var(--line-soft)] bg-[#f8f7f3] p-2 shadow-lg">
             <Link href="/search" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
               搜索

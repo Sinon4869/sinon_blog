@@ -28,26 +28,42 @@ body {
 }
 
 .container-page {
-  @apply mx-auto w-full max-w-[1320px] px-4 py-5 sm:px-6 sm:py-8;
+  @apply mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8;
+}
+
+@keyframes fadeRiseIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.fade-rise {
+  animation: fadeRiseIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--index, 0) * 70ms);
 }
 
 .btn {
   border: 1px solid var(--line-strong);
   background: var(--bg-ink);
   color: #f8f8f6;
-  @apply rounded-md px-4 py-2 text-sm font-medium transition-colors hover:opacity-90;
+  @apply rounded-md px-4 py-2 text-sm font-medium transition-all duration-300 hover:opacity-90 active:scale-[0.98];
 }
 
 .input {
   border: 1px solid var(--line-strong);
   background: #fcfbf8;
-  @apply w-full rounded-md px-3 py-2 text-base sm:text-sm focus:outline-none;
+  @apply w-full rounded-md px-3 py-2 text-base transition-colors sm:text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200;
 }
 
 .card {
   border: 1px solid var(--line-soft);
   background: rgba(255, 255, 255, 0.72);
-  @apply rounded-xl p-4 shadow-sm sm:p-5;
+  @apply rounded-xl p-4 shadow-sm shadow-zinc-900/5 sm:p-5;
 }
 
 .prose {
@@ -243,7 +259,7 @@ body {
 .tiptap-btn {
   border: 1px solid var(--line-soft);
   background: #f8f7f3;
-  @apply rounded px-2 py-1 text-xs text-zinc-700 transition hover:bg-zinc-100;
+  @apply rounded px-2 py-1 text-xs text-zinc-700 transition-all duration-200 hover:bg-zinc-100 active:scale-[0.98];
 }
 
 .tiptap-btn.is-active {

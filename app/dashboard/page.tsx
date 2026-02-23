@@ -191,7 +191,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 </tr>
               )}
               {pagePosts.map((post) => (
-                <tr key={post.id} className="border-b border-[var(--line-soft)] last:border-b-0">
+                <tr key={post.id} className="border-b border-[var(--line-soft)] transition-colors hover:bg-white/50 last:border-b-0">
                   <td className="px-4 py-3">
                     <p className="font-medium text-zinc-800">{post.title}</p>
                     <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{post.excerpt || '暂无摘要'}</p>
