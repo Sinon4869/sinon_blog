@@ -8,26 +8,40 @@ function cuidLike() {
 }
 
 async function getDB(): Promise<any> {
-  const ctx = await getCloudflareContext({ async: true });
-  const db = (ctx?.env as any)?.DB;
-  if (!db) throw new Error('Cloudflare D1 binding DB not found');
-  return db;
+  try {
+    const ctx = await getCloudflareContext({ async: true });
+    const db = (ctx?.env as any)?.DB;
+    return db ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function one<T = Row>(sql: string, ...bindings: any[]): Promise<T | null> {
   const db = await getDB();
-  const rs = await db.prepare(sql).bind(...bindings).all();
-  return (rs?.results?.[0] as T) ?? null;
+  if (!db) return null;
+  try {
+    const rs = await db.prepare(sql).bind(...bindings).all();
+    return (rs?.results?.[0] as T) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function many<T = Row>(sql: string, ...bindings: any[]): Promise<T[]> {
   const db = await getDB();
-  const rs = await db.prepare(sql).bind(...bindings).all();
-  return (rs?.results as T[]) ?? [];
+  if (!db) return [];
+  try {
+    const rs = await db.prepare(sql).bind(...bindings).all();
+    return (rs?.results as T[]) ?? [];
+  } catch {
+    return [];
+  }
 }
 
 async function run(sql: string, ...bindings: any[]) {
   const db = await getDB();
+  if (!db) throw new Error('Cloudflare D1 binding DB not found');
   return db.prepare(sql).bind(...bindings).run();
 }
 
