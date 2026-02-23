@@ -109,6 +109,29 @@ export async function deletePost(formData: FormData) {
   revalidatePath('/dashboard');
 }
 
+export async function setPostPublished(formData: FormData) {
+  const user = await requireUser();
+  const id = formData.get('id')?.toString();
+  const nextPublished = formData.get('nextPublished')?.toString() === '1';
+  if (!id) return;
+
+  const post = await prisma.post.findUnique({ where: { id } });
+  if (!post) return;
+  if (post.authorId !== user.id && user.role !== 'ADMIN') throw new Error('无权限修改');
+
+  await prisma.post.update({
+    where: { id },
+    data: {
+      published: nextPublished,
+      publishedAt: nextPublished ? new Date() : null
+    }
+  });
+
+  revalidatePath('/');
+  revalidatePath('/dashboard');
+  if (post.slug) revalidatePath(`/posts/${post.slug}`);
+}
+
 export async function saveProfile(formData: FormData) {
   const user = await requireUser();
   const parsed = profileSchema.safeParse({

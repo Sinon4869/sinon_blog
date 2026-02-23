@@ -21,7 +21,7 @@ body {
     radial-gradient(1200px 600px at 80% -20%, #e7e5dd 0%, rgba(231, 229, 221, 0) 70%),
     linear-gradient(to bottom, var(--bg-paper-soft), var(--bg-paper));
   color: var(--bg-ink);
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Times New Roman', serif;
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   @apply antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;

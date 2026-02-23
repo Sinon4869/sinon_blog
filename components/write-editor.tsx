@@ -128,7 +128,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </div>
 
       <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4">
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 p-3 sm:grid sm:grid-cols-[320px_1fr_28px] sm:gap-6">
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 p-3 sm:grid sm:grid-cols-[320px_1fr] sm:gap-6">
           {coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={coverImage} alt="cover-preview" className="h-56 w-full rounded-lg object-cover sm:h-[260px]" />
@@ -139,14 +139,6 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <p className="text-sm text-zinc-500">{todayLabel()}</p>
             <p className="text-3xl font-bold text-zinc-700 sm:text-4xl">{title || '这里显示标题预览'}</p>
             <p className="text-xl text-zinc-600">{excerpt || '这里显示摘要预览'}</p>
-          </div>
-          <div className="hidden items-center justify-center sm:flex">
-            <div className="space-y-3">
-              <div className="h-12 w-3 rounded-full bg-emerald-500" />
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-3 w-3 rounded-full bg-zinc-300" />
-              ))}
-            </div>
           </div>
         </div>
 
