@@ -52,7 +52,7 @@ export function WritePreviewClient({ draftRaw }: { draftRaw: string }) {
     return (
       <div className="container-page space-y-3">
         <h1 className="text-2xl font-bold">预览数据无效</h1>
-        <Link href="/write" className="btn inline-block">
+        <Link href="/write/new" className="btn inline-block">
           返回编辑
         </Link>
       </div>
@@ -64,7 +64,7 @@ export function WritePreviewClient({ draftRaw }: { draftRaw: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">发布前预览</h1>
         <div className="flex gap-2">
-          <Link href={draft.id ? `/write?id=${draft.id}` : '/write'} className="rounded border px-3 py-2 text-sm">
+          <Link href={draft.id ? `/write?id=${draft.id}` : '/write/new'} className="rounded border px-3 py-2 text-sm">
             返回编辑
           </Link>
           <button className="btn" type="button" disabled={submitting} onClick={confirmPublish}>

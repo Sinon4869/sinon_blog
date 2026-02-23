@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-zinc-600">快速查看写作状态、近期内容与常用操作。</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link className="btn" href="/write">
+            <Link className="btn" href="/write/new">
               + 新建文章
             </Link>
             <Link className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100" href="/search">
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
           <div className="card border border-zinc-200">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">最近内容</h2>
-              <Link className="text-sm text-zinc-600 underline" href="/write">
+              <Link className="text-sm text-zinc-600 underline" href="/write/new">
                 新建
               </Link>
             </div>
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
           <div className="card border border-zinc-200">
             <h3 className="mb-3 text-base font-semibold">快捷操作</h3>
             <div className="grid gap-2 text-sm">
-              <Link className="rounded-md border border-zinc-300 px-3 py-2 hover:bg-zinc-100" href="/write">
+              <Link className="rounded-md border border-zinc-300 px-3 py-2 hover:bg-zinc-100" href="/write/new">
                 新建文章
               </Link>
               {recentPosts[0] && (
