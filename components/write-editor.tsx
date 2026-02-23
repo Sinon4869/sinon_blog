@@ -2,6 +2,10 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -32,12 +36,6 @@ type DraftPayload = {
   ts: number;
 };
 
-function estimateReadingTime(text: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 220));
-  return { words, minutes };
-}
-
 async function toDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -47,28 +45,52 @@ async function toDataUrl(file: File): Promise<string> {
   });
 }
 
+function estimateReadingTime(text: string) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.round(words / 220));
+  return { words, minutes };
+}
+
 export function WriteEditor({ action, post }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
   const [tags, setTags] = useState(post?.tags || '');
-  const [content, setContent] = useState(post?.content || '');
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [published, setPublished] = useState(!!post?.published);
   const [restored, setRestored] = useState(false);
   const [snapshots, setSnapshots] = useState<DraftPayload[]>([]);
-  const [previewMode, setPreviewMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [publishPreview, setPublishPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const draftKey = `${DRAFT_PREFIX}${post?.id || 'new'}`;
   const snapshotKey = `${SNAPSHOT_PREFIX}${post?.id || 'new'}`;
-  const stat = useMemo(() => estimateReadingTime(content), [content]);
-  const html = useMemo(() => marked.parse(content || ''), [content]);
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const editor = useEditor({
+    extensions: [StarterKit, Image, Link.configure({ openOnClick: false })],
+    content: post?.content
+      ? post.content.includes('<')
+        ? post.content
+        : marked.parse(post.content)
+      : '<p></p>'
+  });
+
+  const content = editor?.getHTML() || '';
+  const plainText = editor?.getText() || '';
+  const stat = useMemo(() => estimateReadingTime(plainText), [plainText]);
 
   function currentPayload(): DraftPayload {
-    return { title, excerpt, tags, content, coverImage, backgroundImage, published, ts: Date.now() };
+    return {
+      title,
+      excerpt,
+      tags,
+      content,
+      coverImage,
+      backgroundImage,
+      published,
+      ts: Date.now()
+    };
   }
 
   function saveLocalDraft() {
@@ -89,10 +111,10 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     setTitle(d.title || '');
     setExcerpt(d.excerpt || '');
     setTags(d.tags || '');
-    setContent(d.content || '');
     setCoverImage(d.coverImage || '');
     setBackgroundImage(d.backgroundImage || '');
     setPublished(!!d.published);
+    if (editor && d.content) editor.commands.setContent(d.content);
     setRestored(true);
   }
 
@@ -102,7 +124,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     try {
       applyDraft(JSON.parse(raw) as DraftPayload);
     } catch {
-      // ignore broken draft
+      // ignore
     }
   }
 
@@ -131,26 +153,12 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     setSnapshots(loadSnapshots());
   }
 
-  function insertAtCursor(snippet: string) {
-    const el = editorRef.current;
-    if (!el) return setContent((prev) => (prev ? `${prev}\n${snippet}` : snippet));
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const next = `${content.slice(0, start)}${snippet}${content.slice(end)}`;
-    setContent(next);
-    setTimeout(() => {
-      el.focus();
-      const pos = start + snippet.length;
-      el.setSelectionRange(pos, pos);
-    }, 0);
-  }
-
   async function handleInlineImage(file: File | undefined) {
-    if (!file) return;
+    if (!file || !editor) return;
     setUploading(true);
     try {
       const url = await toDataUrl(file);
-      insertAtCursor(`\n![${file.name}](${url})\n`);
+      editor.chain().focus().setImage({ src: url, alt: file.name }).run();
     } finally {
       setUploading(false);
     }
@@ -176,9 +184,12 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
+  if (!editor) return null;
+
   return (
     <form
       action={async (formData) => {
+        formData.set('content', editor.getHTML());
         await action(formData);
         clearLocalDraft();
       }}
@@ -202,6 +213,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </div>
 
       <input type="hidden" name="id" value={post?.id || ''} />
+      <input type="hidden" name="content" value={content} />
 
       <div className="grid gap-3">
         <input className="input" name="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="标题" required />
@@ -230,14 +242,12 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           {coverImage && (
             <div>
               <p className="mb-1 text-xs text-zinc-500">封面预览</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={coverImage} alt="cover-preview" className="h-36 w-full rounded-md object-cover" />
             </div>
           )}
           {backgroundImage && (
             <div>
               <p className="mb-1 text-xs text-zinc-500">背景预览</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={backgroundImage} alt="bg-preview" className="h-36 w-full rounded-md object-cover" />
             </div>
           )}
@@ -246,61 +256,40 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
 
       <div className="card space-y-3">
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('## 小标题')}>
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
             标题
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('**加粗文本**')}>
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBold().run()}>
             加粗
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('- 列表项 1\n- 列表项 2')}>
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBulletList().run()}>
             列表
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('```ts\nconsole.log("hello");\n```')}>
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
             代码块
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('> 引用内容')}>
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBlockquote().run()}>
             引用
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => insertAtCursor('[链接文字](https://example.com)')}>
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-xs"
+            onClick={() => {
+              const url = window.prompt('输入链接 URL');
+              if (!url) return;
+              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+            }}
+          >
             链接
           </button>
-          <label className="rounded border px-2 py-1 text-xs hover:bg-zinc-50">
+          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => fileRef.current?.click()}>
             上传正文图片
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
-          </label>
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button type="button" className={`rounded border px-2 py-1 ${previewMode === 'split' ? 'bg-zinc-900 text-white' : ''}`} onClick={() => setPreviewMode('split')}>
-            分栏预览
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 ${previewMode === 'edit' ? 'bg-zinc-900 text-white' : ''}`} onClick={() => setPreviewMode('edit')}>
-            仅编辑
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 ${previewMode === 'preview' ? 'bg-zinc-900 text-white' : ''}`} onClick={() => setPreviewMode('preview')}>
-            仅预览
-          </button>
-          {uploading && <span className="text-zinc-500">图片处理中…</span>}
-        </div>
-
-        <div className={`grid gap-3 ${previewMode === 'split' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-          {previewMode !== 'preview' && (
-            <textarea
-              ref={editorRef}
-              className="input min-h-[50vh] md:min-h-[65vh]"
-              name="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Markdown/MDX 内容"
-              required
-            />
-          )}
-
-          {previewMode !== 'edit' && (
-            <div className="input min-h-[50vh] md:min-h-[65vh] overflow-auto">
-              <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html as string }} />
-            </div>
-          )}
+        <div className="input min-h-[50vh] md:min-h-[65vh]">
+          <EditorContent editor={editor} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
@@ -321,6 +310,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <button type="button" className="rounded border px-2 py-1" onClick={clearLocalDraft}>
               清除草稿
             </button>
+            {uploading && <span>图片处理中…</span>}
           </div>
         </div>
 
@@ -351,7 +341,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           <div className="space-y-3 rounded border border-zinc-200 p-3">
             <h2 className="text-2xl font-bold">{title || '未命名标题'}</h2>
             <p className="text-sm text-zinc-500">{excerpt || '暂无摘要'}</p>
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html as string }} />
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
           </div>
         )}
       </div>
