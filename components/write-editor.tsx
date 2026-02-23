@@ -84,7 +84,22 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       }}
       className="space-y-3 pb-24 md:pb-0"
     >
-      <h1 className="text-2xl font-bold">{post?.id ? '编辑文章' : '新建文章'}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">{post?.id ? '编辑文章' : '新建文章'}</h1>
+        {!post?.id && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <a className="rounded border px-2 py-1" href="/write?template=tutorial">
+              套用教程模板
+            </a>
+            <a className="rounded border px-2 py-1" href="/write?template=weekly">
+              套用周报模板
+            </a>
+            <a className="rounded border px-2 py-1" href="/write?template=review">
+              套用复盘模板
+            </a>
+          </div>
+        )}
+      </div>
 
       <input type="hidden" name="id" value={post?.id || ''} />
 
