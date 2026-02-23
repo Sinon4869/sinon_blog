@@ -117,6 +117,8 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [feedback, setFeedback] = useState('');
   const [toolbarDocked, setToolbarDocked] = useState(false);
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [toolbarLeft, setToolbarLeft] = useState(0);
+  const [toolbarWidth, setToolbarWidth] = useState(0);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
@@ -170,12 +172,21 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     const shellEl = editorShellRef.current;
     if (!anchorEl || !shellEl) return;
 
-    const TOP_OFFSET = 98;
+    const TOP_OFFSET = 92;
     const onScroll = () => {
-      const anchorTop = anchorEl.getBoundingClientRect().top;
-      const shellBottom = shellEl.getBoundingClientRect().bottom;
-      const canDock = shellBottom - TOP_OFFSET > 140;
-      setToolbarDocked(anchorTop <= TOP_OFFSET && canDock);
+      const scrollY = window.scrollY;
+      const anchorRect = anchorEl.getBoundingClientRect();
+      const shellRect = shellEl.getBoundingClientRect();
+      const anchorY = anchorRect.top + scrollY;
+      const shellBottomY = shellRect.bottom + scrollY;
+      const startY = anchorY - TOP_OFFSET;
+      const endY = shellBottomY - TOP_OFFSET - Math.max(toolbarHeight, 56) - 8;
+      const shouldDock = scrollY >= startY && scrollY <= endY;
+      setToolbarDocked(shouldDock);
+      if (shouldDock) {
+        setToolbarLeft(shellRect.left);
+        setToolbarWidth(shellRect.width);
+      }
     };
 
     onScroll();
@@ -185,7 +196,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [pinToolbar]);
+  }, [pinToolbar, toolbarHeight]);
 
   useEffect(() => {
     const el = toolbarRef.current;
@@ -398,12 +409,20 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           <div
             ref={toolbarRef}
             className={`z-30 border-b border-zinc-200 px-2 py-2 transition-all duration-300 md:px-3 ${
-              toolbarDocked && pinToolbar ? 'md:fixed md:left-1/2 md:top-[92px] md:w-[min(96vw,1320px)] md:-translate-x-1/2' : ''
+              toolbarDocked && pinToolbar ? 'md:fixed md:top-[92px]' : ''
             } ${
               toolbarDocked
                 ? 'bg-[rgba(247,246,242,0.92)] shadow-[0_10px_24px_-16px_rgba(40,40,40,0.45)] backdrop-blur-xl'
                 : 'bg-zinc-50/95 backdrop-blur'
             }`}
+            style={
+              toolbarDocked && pinToolbar
+                ? {
+                    left: `${toolbarLeft}px`,
+                    width: `${toolbarWidth}px`
+                  }
+                : undefined
+            }
           >
             <div
               className={`rounded-xl border border-zinc-200 bg-white/86 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-300 ${
