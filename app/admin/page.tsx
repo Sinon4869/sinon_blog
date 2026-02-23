@@ -5,19 +5,38 @@ import { authOptions } from '@/lib/auth';
 import { AdminUserTable } from '@/components/admin-user-table';
 import { prisma } from '@/lib/prisma';
 
+type AuditLogItem = {
+  id: string;
+  actor_user_id?: string | null;
+  target_user_id?: string | null;
+  action: string;
+  created_at: string;
+};
+
+type AdminUserItem = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: 'USER' | 'ADMIN';
+  disabled: number;
+  createdAt: string;
+  last_login_at?: string | null;
+};
+
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect('/login');
   if (session.user.role !== 'ADMIN') redirect('/');
 
-  const [users, posts, comments, userList] = await Promise.all([
+  const [users, posts, comments, userList, logs]: [number, number, number, AdminUserItem[], AuditLogItem[]] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
     prisma.user.findMany({
-      select: { id: true, email: true, name: true, role: true, disabled: true, createdAt: true },
+      select: { id: true, email: true, name: true, role: true, disabled: true, createdAt: true, last_login_at: true },
       orderBy: { createdAt: 'desc' }
-    })
+    }),
+    prisma.auditLog.findMany({ take: 20 })
   ]);
 
   return (
@@ -31,6 +50,18 @@ export default async function AdminPage() {
       <div className="card space-y-2">
         <h2 className="text-lg font-semibold">用户管理</h2>
         <AdminUserTable initialUsers={userList} />
+      </div>
+
+      <div className="card space-y-2">
+        <h2 className="text-lg font-semibold">操作审计日志</h2>
+        <ul className="space-y-1 text-sm text-zinc-700">
+          {logs.length === 0 && <li>暂无日志</li>}
+          {logs.map((l) => (
+            <li key={l.id}>
+              {l.created_at} · {l.action} · actor:{l.actor_user_id || '-'} · target:{l.target_user_id || '-'}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

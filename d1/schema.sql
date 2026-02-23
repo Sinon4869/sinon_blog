@@ -10,9 +10,23 @@ CREATE TABLE IF NOT EXISTS users (
   bio TEXT,
   role TEXT NOT NULL DEFAULT 'USER',
   disabled INTEGER NOT NULL DEFAULT 0,
+  last_login_at TEXT,
   createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  actor_user_id TEXT,
+  target_user_id TEXT,
+  action TEXT NOT NULL,
+  detail TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_user_id);
 
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,

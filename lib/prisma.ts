@@ -312,5 +312,23 @@ export const prisma = {
       await run('DELETE FROM favorites WHERE userId = ? AND postId = ?', k.userId, k.postId);
       return where;
     }
+  },
+  auditLog: {
+    async create({ data }: any) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO audit_logs (id, actor_user_id, target_user_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        data.actor_user_id ?? null,
+        data.target_user_id ?? null,
+        data.action,
+        data.detail ?? null
+      );
+      return one('SELECT * FROM audit_logs WHERE id = ?', id);
+    },
+    async findMany({ take }: any = {}) {
+      const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 20';
+      return many(`SELECT * FROM audit_logs ORDER BY created_at DESC${limit}`);
+    }
   }
 };

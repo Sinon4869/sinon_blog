@@ -33,5 +33,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
   if (!user) return NextResponse.json({ error: '更新失败' }, { status: 500 });
 
-  return NextResponse.json({ user: { id: user.id, role: user.role, disabled: user.disabled } });
+  await prisma.auditLog.create({
+    data: {
+      actor_user_id: session.user.id,
+      target_user_id: id,
+      action: 'admin_user_update',
+      detail: JSON.stringify(parsed.data)
+    }
+  });
+
+  return NextResponse.json({
+    user: {
+      id: user.id,
+      role: user.role,
+      disabled: user.disabled,
+      last_login_at: (user as { last_login_at?: string | null }).last_login_at || null
+    }
+  });
 }

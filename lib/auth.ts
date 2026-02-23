@@ -62,9 +62,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         const role = adminEmails.includes(user.email.toLowerCase()) ? 'ADMIN' : user.role;
-        if (role !== user.role) {
-          await prisma.user.updateMany({ where: { email: user.email.toLowerCase() }, data: { role } });
-        }
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            ...(role !== user.role ? { role } : {}),
+            last_login_at: new Date().toISOString()
+          }
+        });
 
         authAudit('credentials_success', { email: maskEmail(user.email), userId: user.id, role });
         return {
@@ -151,9 +155,13 @@ export const authOptions: NextAuthOptions = {
       }
 
       const role = adminEmails.includes(email) ? 'ADMIN' : dbUser.role;
-      if (role !== dbUser.role) {
-        dbUser = await prisma.user.update({ where: { id: dbUser.id }, data: { role } });
-      }
+      dbUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          ...(role !== dbUser.role ? { role } : {}),
+          last_login_at: new Date().toISOString()
+        }
+      });
 
       user.id = dbUser.id;
       (user as any).role = dbUser.role;
