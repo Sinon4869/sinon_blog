@@ -7,6 +7,7 @@ import { compare, hash } from 'bcryptjs';
 import { z } from 'zod';
 
 import { authOptions } from '@/lib/auth';
+import { evaluatePublishChecklist } from '@/lib/publish-checklist';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 
@@ -45,6 +46,26 @@ export async function savePost(formData: FormData) {
 
   const words = content.trim().split(/\s+/).filter(Boolean).length;
   const readingTime = Math.max(1, Math.round(words / 220));
+  const checklist = evaluatePublishChecklist({
+    title,
+    excerpt,
+    tags: tagLine,
+    content,
+    coverImage
+  });
+
+  if (checklist.warnings.length > 0) {
+    console.info(
+      JSON.stringify({
+        type: 'publish_check_warning',
+        userId: user.id,
+        postId: id || 'new',
+        warningKeys: checklist.warnings.map((w) => w.key),
+        warningLabels: checklist.warnings.map((w) => w.label),
+        ts: new Date().toISOString()
+      })
+    );
+  }
 
   const post = id
     ? await prisma.post.update({

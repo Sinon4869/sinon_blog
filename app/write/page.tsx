@@ -2,16 +2,31 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
 import { savePost } from '@/app/actions';
+import { WriteEditor } from '@/components/write-editor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { WriteEditor } from '@/components/write-editor';
 
-const TEMPLATES: Record<string, { title: string; excerpt: string; content: string; tags: string }> = {
-  tutorial: {
-    title: '【教程】',
+type TemplateMeta = {
+  id: string;
+  name: string;
+  scene: string;
+  title: string;
+  excerpt: string;
+  tags: string;
+  content: string;
+};
+
+const TEMPLATE_CATALOG: TemplateMeta[] = [
+  {
+    id: 'tutorial',
+    name: '教程模板',
+    scene: '步骤型内容，强调可复现',
+    title: '【教程】{{date}}',
     excerpt: '这篇教程将解决什么问题，适合什么人阅读。',
     tags: '教程,实践',
-    content: `## 背景
+    content: `作者：{{author_name}}
+
+## 背景
 - 问题是什么
 - 适用场景
 
@@ -32,11 +47,16 @@ const TEMPLATES: Record<string, { title: string; excerpt: string; content: strin
 - 关键结论
 - 下一步建议`
   },
-  weekly: {
-    title: '【周报】',
+  {
+    id: 'weekly',
+    name: '周报模板',
+    scene: '周期同步，强调进展与风险',
+    title: '【周报】{{week_range}}',
     excerpt: '本周工作进展与下周计划。',
     tags: '周报,复盘',
-    content: `## 本周目标
+    content: `作者：{{author_name}}
+
+## 本周目标
 - 
 
 ## 本周完成
@@ -54,11 +74,16 @@ const TEMPLATES: Record<string, { title: string; excerpt: string; content: strin
 ## 需要协作
 - `
   },
-  review: {
-    title: '【复盘】',
+  {
+    id: 'review',
+    name: '复盘模板',
+    scene: '阶段回顾，强调根因与改进',
+    title: '【复盘】{{date}}',
     excerpt: '一次任务/项目的复盘总结与改进项。',
     tags: '复盘,总结',
-    content: `## 目标与预期
+    content: `作者：{{author_name}}
+
+## 目标与预期
 - 
 
 ## 结果概览
@@ -80,7 +105,46 @@ const TEMPLATES: Record<string, { title: string; excerpt: string; content: strin
 ## 结论
 - `
   }
-};
+];
+
+function formatDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function mondayOf(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const delta = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + delta);
+  return d;
+}
+
+function sundayOf(date: Date) {
+  const d = mondayOf(date);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+
+function renderTemplateValue(raw: string, values: Record<string, string>) {
+  return raw.replace(/\{\{(date|week_range|author_name)\}\}/g, (_, key: string) => values[key] || '');
+}
+
+function buildTemplates(authorName: string) {
+  const now = new Date();
+  const values = {
+    date: formatDate(now),
+    week_range: `${formatDate(mondayOf(now))} ~ ${formatDate(sundayOf(now))}`,
+    author_name: authorName
+  };
+
+  return TEMPLATE_CATALOG.map((tpl) => ({
+    ...tpl,
+    title: renderTemplateValue(tpl.title, values),
+    excerpt: renderTemplateValue(tpl.excerpt, values),
+    tags: renderTemplateValue(tpl.tags, values),
+    content: renderTemplateValue(tpl.content, values)
+  }));
+}
 
 export default async function WritePage({ searchParams }: { searchParams: Promise<{ id?: string; template?: string }> }) {
   const sp = await searchParams;
@@ -98,11 +162,13 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
     redirect('/dashboard');
   }
 
-  const tpl = !post && sp.template ? TEMPLATES[sp.template] : null;
+  const templates = buildTemplates(session.user.name?.trim() || '作者');
+  const selectedTemplate = !post && sp.template ? templates.find((tpl) => tpl.id === sp.template) : undefined;
 
   return (
     <WriteEditor
       action={savePost}
+      templates={templates}
       post={
         post
           ? {
@@ -115,15 +181,16 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
               coverImage: (post as { cover_image?: string | null }).cover_image || '',
               backgroundImage: (post as { background_image?: string | null }).background_image || ''
             }
-          : tpl
+          : selectedTemplate
             ? {
-                title: tpl.title,
-                excerpt: tpl.excerpt,
-                content: tpl.content,
-                tags: tpl.tags
+                title: selectedTemplate.title,
+                excerpt: selectedTemplate.excerpt,
+                content: selectedTemplate.content,
+                tags: selectedTemplate.tags
               }
             : undefined
       }
+      initialTemplateId={selectedTemplate?.id}
     />
   );
 }

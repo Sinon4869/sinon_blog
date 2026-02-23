@@ -1,14 +1,28 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 
+import { evaluatePublishChecklist } from '@/lib/publish-checklist';
+
+type TemplateItem = {
+  id: string;
+  name: string;
+  scene: string;
+  title: string;
+  excerpt: string;
+  tags: string;
+  content: string;
+};
+
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
+  templates?: TemplateItem[];
+  initialTemplateId?: string;
   post?: {
     id?: string;
     title?: string;
@@ -22,19 +36,31 @@ type WriteEditorProps = {
 };
 
 const DRAFT_PREFIX = 'komorebi:draft:';
-const SNAPSHOT_PREFIX = 'komorebi:draft-snapshots:';
 const MAX_SNAPSHOTS = 5;
+const SYNC_INTERVAL_MS = 20_000;
 
 type DraftPayload = {
+  postId: string;
   title: string;
   excerpt: string;
   tags: string;
   content: string;
   coverImage: string;
   backgroundImage: string;
-  published: boolean;
-  ts: number;
 };
+
+type DraftVersion = {
+  id: string;
+  createdAt: string;
+  title: string;
+  excerpt: string;
+  tags: string;
+  content: string;
+  coverImage: string;
+  backgroundImage: string;
+};
+
+type SyncState = 'idle' | 'syncing' | 'synced' | 'failed';
 
 async function uploadToR2(file: File): Promise<string> {
   const formData = new FormData();
@@ -51,7 +77,11 @@ function estimateReadingTime(text: string) {
   return { words, minutes };
 }
 
-export function WriteEditor({ action, post }: WriteEditorProps) {
+function normalizePostId(postId?: string) {
+  return (postId || 'new').trim() || 'new';
+}
+
+export function WriteEditor({ action, post, templates = [], initialTemplateId }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
   const [tags, setTags] = useState(post?.tags || '');
@@ -59,13 +89,21 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [published, setPublished] = useState(!!post?.published);
   const [restored, setRestored] = useState(false);
-  const [snapshots, setSnapshots] = useState<DraftPayload[]>([]);
+  const [versions, setVersions] = useState<DraftVersion[]>([]);
   const [publishPreview, setPublishPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [templateNotice, setTemplateNotice] = useState(initialTemplateId ? '已套用模板' : '');
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [syncedAt, setSyncedAt] = useState('');
+  const [readyToSync, setReadyToSync] = useState(false);
+  const [hasUnsyncedChange, setHasUnsyncedChange] = useState(false);
 
-  const draftKey = `${DRAFT_PREFIX}${post?.id || 'new'}`;
-  const snapshotKey = `${SNAPSHOT_PREFIX}${post?.id || 'new'}`;
+  const postId = normalizePostId(post?.id);
+  const draftKey = `${DRAFT_PREFIX}${postId}`;
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const lastSyncedRef = useRef('');
+  const syncInFlightRef = useRef(false);
 
   const editor = useEditor({
     extensions: [StarterKit, Image, Link.configure({ openOnClick: false })],
@@ -80,77 +118,139 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const plainText = editor?.getText() || '';
   const stat = useMemo(() => estimateReadingTime(plainText), [plainText]);
 
+  const checklist = useMemo(
+    () =>
+      evaluatePublishChecklist({
+        title,
+        excerpt,
+        tags,
+        content,
+        coverImage
+      }),
+    [title, excerpt, tags, content, coverImage]
+  );
+
   function currentPayload(): DraftPayload {
     return {
+      postId,
       title,
       excerpt,
       tags,
       content,
       coverImage,
-      backgroundImage,
-      published,
-      ts: Date.now()
+      backgroundImage
     };
   }
 
-  function saveLocalDraft() {
-    localStorage.setItem(draftKey, JSON.stringify(currentPayload()));
+  function payloadToString(payload: DraftPayload) {
+    return JSON.stringify(payload);
   }
 
-  function loadSnapshots(): DraftPayload[] {
-    const raw = localStorage.getItem(snapshotKey);
-    if (!raw) return [];
-    try {
-      return JSON.parse(raw) as DraftPayload[];
-    } catch {
-      return [];
-    }
-  }
-
-  function applyDraft(d: Partial<DraftPayload>) {
-    setTitle(d.title || '');
-    setExcerpt(d.excerpt || '');
-    setTags(d.tags || '');
-    setCoverImage(d.coverImage || '');
-    setBackgroundImage(d.backgroundImage || '');
-    setPublished(!!d.published);
-    if (editor && d.content) editor.commands.setContent(d.content);
-    setRestored(true);
+  function saveLocalDraft(payload = currentPayload()) {
+    localStorage.setItem(draftKey, JSON.stringify(payload));
   }
 
   function restoreLocalDraft() {
     const raw = localStorage.getItem(draftKey);
-    if (!raw) return;
+    if (!raw) return false;
     try {
-      applyDraft(JSON.parse(raw) as DraftPayload);
+      const parsed = JSON.parse(raw) as Partial<DraftPayload>;
+      applyDraft(parsed);
+      setHasUnsyncedChange(true);
+      setSyncState('idle');
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   }
 
-  function saveSnapshot() {
-    const next = [currentPayload(), ...loadSnapshots()].slice(0, MAX_SNAPSHOTS);
-    localStorage.setItem(snapshotKey, JSON.stringify(next));
-    setSnapshots(next);
-  }
-
-  function restoreSnapshot(idx: number) {
-    const list = loadSnapshots();
-    const item = list[idx];
-    if (!item) return;
-    applyDraft(item);
-    setSnapshots(list);
+  function applyDraft(draft: Partial<DraftPayload>) {
+    setTitle(draft.title || '');
+    setExcerpt(draft.excerpt || '');
+    setTags(draft.tags || '');
+    setCoverImage(draft.coverImage || '');
+    setBackgroundImage(draft.backgroundImage || '');
+    if (editor && draft.content) editor.commands.setContent(draft.content);
+    setRestored(true);
   }
 
   function clearLocalDraft() {
     localStorage.removeItem(draftKey);
-    localStorage.removeItem(snapshotKey);
-    setSnapshots([]);
     setRestored(false);
   }
 
-  function showSnapshots() {
-    setSnapshots(loadSnapshots());
+  async function fetchVersions() {
+    const res = await fetch(`/api/write/drafts/versions?postId=${encodeURIComponent(postId)}&limit=${MAX_SNAPSHOTS}`);
+    const data = (await res.json().catch(() => ({}))) as { versions?: DraftVersion[] };
+    if (!res.ok || !Array.isArray(data.versions)) return;
+    setVersions(data.versions);
+  }
+
+  async function syncDraft(payload: DraftPayload) {
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    setSyncState('syncing');
+    try {
+      const res = await fetch('/api/write/drafts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = (await res.json().catch(() => ({}))) as { syncedAt?: string };
+      if (!res.ok) throw new Error('sync_failed');
+      lastSyncedRef.current = payloadToString(payload);
+      setHasUnsyncedChange(false);
+      setSyncState('synced');
+      setSyncedAt(data.syncedAt || '');
+      saveLocalDraft(payload);
+    } catch {
+      setSyncState('failed');
+      saveLocalDraft(payload);
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }
+
+  async function saveSnapshot() {
+    const payload = currentPayload();
+    const res = await fetch('/api/write/drafts/versions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = (await res.json().catch(() => ({}))) as { versions?: DraftVersion[] };
+    if (!res.ok || !Array.isArray(data.versions)) {
+      alert('保存快照失败');
+      return;
+    }
+    setVersions(data.versions);
+    lastSyncedRef.current = payloadToString(payload);
+    setSyncState('synced');
+    setSyncedAt(new Date().toISOString());
+    setHasUnsyncedChange(false);
+    setTemplateNotice('已保存云端快照');
+  }
+
+  function restoreVersion(id: string) {
+    const found = versions.find((v) => v.id === id);
+    if (!found) return;
+    applyDraft(found);
+    setHasUnsyncedChange(true);
+    setSyncState('idle');
+    setTemplateNotice('已恢复云端快照');
+  }
+
+  function applyTemplate(tpl: TemplateItem) {
+    const hasTyped = title.trim() || excerpt.trim() || tags.trim() || plainText.trim();
+    if (hasTyped && !window.confirm('套用模板将覆盖当前编辑内容，是否继续？')) return;
+    setTitle(tpl.title);
+    setExcerpt(tpl.excerpt);
+    setTags(tpl.tags);
+    if (editor) editor.commands.setContent(marked.parse(tpl.content));
+    setHasUnsyncedChange(true);
+    setSyncState('idle');
+    setTemplateNotice(`已套用模板：${tpl.name}`);
+    editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function openFullPreview() {
@@ -204,11 +304,100 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
+  useEffect(() => {
+    if (!editor) return;
+    let cancelled = false;
+
+    async function bootstrap() {
+      try {
+        const res = await fetch(`/api/write/drafts?postId=${encodeURIComponent(postId)}`);
+        const data = (await res.json().catch(() => ({}))) as {
+          draft?: {
+            postId: string;
+            title: string;
+            excerpt: string;
+            tags: string;
+            content: string;
+            coverImage: string;
+            backgroundImage: string;
+            syncedAt: string;
+          } | null;
+        };
+
+        if (cancelled) return;
+        if (res.ok && data.draft) {
+          applyDraft(data.draft);
+          lastSyncedRef.current = payloadToString({
+            postId,
+            title: data.draft.title || '',
+            excerpt: data.draft.excerpt || '',
+            tags: data.draft.tags || '',
+            content: data.draft.content || '',
+            coverImage: data.draft.coverImage || '',
+            backgroundImage: data.draft.backgroundImage || ''
+          });
+          setHasUnsyncedChange(false);
+          setSyncState('synced');
+          setSyncedAt(data.draft.syncedAt || '');
+        } else {
+          const restoredLocal = restoreLocalDraft();
+          if (!restoredLocal) {
+            lastSyncedRef.current = payloadToString(currentPayload());
+          }
+        }
+      } catch {
+        if (!cancelled) restoreLocalDraft();
+      } finally {
+        if (!cancelled) {
+          setReadyToSync(true);
+          void fetchVersions();
+        }
+      }
+    }
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, postId]);
+
+  useEffect(() => {
+    if (!readyToSync || !editor) return;
+    const now = payloadToString(currentPayload());
+    if (!lastSyncedRef.current) {
+      lastSyncedRef.current = now;
+      return;
+    }
+    if (now !== lastSyncedRef.current) {
+      setHasUnsyncedChange(true);
+      if (syncState !== 'syncing') setSyncState('idle');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyToSync, title, excerpt, tags, coverImage, backgroundImage, content]);
+
+  useEffect(() => {
+    if (!readyToSync) return;
+    const timer = window.setInterval(() => {
+      if (!hasUnsyncedChange) return;
+      const payload = currentPayload();
+      void syncDraft(payload);
+    }, SYNC_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyToSync, hasUnsyncedChange, title, excerpt, tags, coverImage, backgroundImage, content]);
+
   if (!editor) return null;
 
   return (
     <form
       action={async (formData) => {
+        if (checklist.warnings.length > 0) {
+          const warningText = checklist.warnings.map((w) => `- ${w.label}`).join('\n');
+          const ok = window.confirm(`发布检查存在提示项：\n${warningText}\n\n仍然继续保存吗？`);
+          if (!ok) return;
+        }
+
         formData.set('content', editor.getHTML());
         await action(formData);
         clearLocalDraft();
@@ -217,20 +406,29 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">{post?.id ? '编辑文章' : '新建文章'}</h1>
-        {!post?.id && (
-          <div className="flex flex-wrap gap-2 text-xs">
-            <a className="rounded border px-2 py-1" href="/write?template=tutorial">
-              套用教程模板
-            </a>
-            <a className="rounded border px-2 py-1" href="/write?template=weekly">
-              套用周报模板
-            </a>
-            <a className="rounded border px-2 py-1" href="/write?template=review">
-              套用复盘模板
-            </a>
-          </div>
-        )}
+        <div className="text-xs text-zinc-500">
+          同步状态：
+          {syncState === 'idle' && '未同步'}
+          {syncState === 'syncing' && '同步中...'}
+          {syncState === 'synced' && `已同步${syncedAt ? `（${new Date(syncedAt).toLocaleString('zh-CN')}）` : ''}`}
+          {syncState === 'failed' && '同步失败（已保留本地草稿）'}
+        </div>
       </div>
+
+      {!post?.id && templates.length > 0 && (
+        <div className="card space-y-2">
+          <h2 className="text-sm font-semibold">模板中心</h2>
+          <div className="grid gap-2 md:grid-cols-3">
+            {templates.map((tpl) => (
+              <button key={tpl.id} type="button" className="rounded-lg border p-3 text-left hover:bg-zinc-50" onClick={() => applyTemplate(tpl)}>
+                <p className="text-sm font-medium">{tpl.name}</p>
+                <p className="mt-1 text-xs text-zinc-500">{tpl.scene}</p>
+              </button>
+            ))}
+          </div>
+          {templateNotice && <p className="text-xs text-green-700">{templateNotice}</p>}
+        </div>
+      )}
 
       <input type="hidden" name="id" value={post?.id || ''} />
       <input type="hidden" name="content" value={content} />
@@ -274,7 +472,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         </div>
       )}
 
-      <div className="card space-y-3">
+      <div className="card space-y-3" ref={editorRef}>
         <div className="tiptap-shell overflow-hidden rounded-xl border border-zinc-200">
           <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 bg-zinc-50 p-2">
             <button type="button" className={`tiptap-btn ${editor.isActive('paragraph') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setParagraph().run()}>
@@ -354,29 +552,29 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <button type="button" className="rounded border px-2 py-1" onClick={restoreLocalDraft}>
               恢复本地草稿
             </button>
-            <button type="button" className="rounded border px-2 py-1" onClick={saveLocalDraft}>
+            <button type="button" className="rounded border px-2 py-1" onClick={() => saveLocalDraft()}>
               保存本地草稿
             </button>
             <button type="button" className="rounded border px-2 py-1" onClick={saveSnapshot}>
-              保存版本快照
+              保存云端快照
             </button>
-            <button type="button" className="rounded border px-2 py-1" onClick={showSnapshots}>
-              查看快照
+            <button type="button" className="rounded border px-2 py-1" onClick={() => void fetchVersions()}>
+              刷新快照
             </button>
             <button type="button" className="rounded border px-2 py-1" onClick={clearLocalDraft}>
-              清除草稿
+              清除本地草稿
             </button>
-            {uploading && <span>图片处理中…</span>}
+            {uploading && <span>图片处理中...</span>}
           </div>
         </div>
 
-        {snapshots.length > 0 && (
+        {versions.length > 0 && (
           <div className="rounded border border-zinc-200 p-2 text-xs">
-            <p className="mb-2 font-medium">最近 {Math.min(MAX_SNAPSHOTS, snapshots.length)} 次快照</p>
+            <p className="mb-2 font-medium">最近 {Math.min(MAX_SNAPSHOTS, versions.length)} 次云端快照</p>
             <div className="space-y-1">
-              {snapshots.map((s, idx) => (
-                <button key={s.ts} type="button" className="block w-full rounded border px-2 py-1 text-left hover:bg-zinc-50" onClick={() => restoreSnapshot(idx)}>
-                  {new Date(s.ts).toLocaleString('zh-CN')} · {s.title || '未命名'}
+              {versions.map((v) => (
+                <button key={v.id} type="button" className="block w-full rounded border px-2 py-1 text-left hover:bg-zinc-50" onClick={() => restoreVersion(v.id)}>
+                  {new Date(v.createdAt).toLocaleString('zh-CN')} · {v.title || '未命名'}
                 </button>
               ))}
             </div>
@@ -384,6 +582,17 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         )}
 
         {restored && <p className="text-xs text-green-600">已恢复草稿内容</p>}
+      </div>
+
+      <div className="card space-y-2">
+        <h3 className="font-semibold">发布检查（提示式）</h3>
+        <div className="space-y-1 text-sm">
+          {checklist.items.map((item) => (
+            <p key={item.key} className={item.ok ? 'text-green-700' : 'text-amber-700'}>
+              {item.ok ? '通过' : '提示'} · {item.label}
+            </p>
+          ))}
+        </div>
       </div>
 
       <div className="card space-y-2">

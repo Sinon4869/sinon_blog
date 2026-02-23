@@ -279,6 +279,82 @@ export const prisma = {
       return data;
     }
   },
+  draft: {
+    async findUnique({ where }: any) {
+      const key = where?.user_id_post_id;
+      if (!key) return null;
+      return one('SELECT * FROM post_drafts WHERE user_id = ? AND post_id = ?', key.user_id, key.post_id);
+    },
+    async upsert({ where, create, update }: any) {
+      const key = where?.user_id_post_id;
+      if (!key) throw new Error('missing draft key');
+      const found = await one('SELECT * FROM post_drafts WHERE user_id = ? AND post_id = ?', key.user_id, key.post_id);
+      if (found) {
+        await run(
+          'UPDATE post_drafts SET title = ?, excerpt = ?, content = ?, tags = ?, cover_image = ?, background_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          update.title ?? '',
+          update.excerpt ?? '',
+          update.content ?? '',
+          update.tags ?? '',
+          update.cover_image ?? '',
+          update.background_image ?? '',
+          (found as any).id
+        );
+        return one('SELECT * FROM post_drafts WHERE id = ?', (found as any).id);
+      }
+
+      const id = cuidLike();
+      await run(
+        'INSERT INTO post_drafts (id, post_id, user_id, title, excerpt, content, tags, cover_image, background_image, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        id,
+        create.post_id,
+        create.user_id,
+        create.title ?? '',
+        create.excerpt ?? '',
+        create.content ?? '',
+        create.tags ?? '',
+        create.cover_image ?? '',
+        create.background_image ?? ''
+      );
+      return one('SELECT * FROM post_drafts WHERE id = ?', id);
+    }
+  },
+  draftVersion: {
+    async create({ data }: any) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO post_draft_versions (id, draft_id, user_id, payload_json, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        data.draft_id,
+        data.user_id,
+        data.payload_json
+      );
+      return one('SELECT * FROM post_draft_versions WHERE id = ?', id);
+    },
+    async findMany({ where, take }: any = {}) {
+      const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 5';
+      const draftId = where?.draft_id;
+      const userId = where?.user_id;
+      if (!draftId || !userId) return [];
+      return many('SELECT * FROM post_draft_versions WHERE draft_id = ? AND user_id = ? ORDER BY created_at DESC' + limit, draftId, userId);
+    },
+    async prune({ draft_id, keep }: { draft_id: string; keep: number }) {
+      await run(
+        `DELETE FROM post_draft_versions
+         WHERE draft_id = ?
+           AND id IN (
+             SELECT id FROM post_draft_versions
+             WHERE draft_id = ?
+             ORDER BY created_at DESC
+             LIMIT -1 OFFSET ?
+           )`,
+        draft_id,
+        draft_id,
+        keep
+      );
+      return { ok: true };
+    }
+  },
   comment: {
     async create({ data }: any) {
       const id = cuidLike();
