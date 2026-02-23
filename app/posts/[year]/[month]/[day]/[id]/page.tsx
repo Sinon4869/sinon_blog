@@ -164,9 +164,9 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="space-y-5">
-          <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-5 sm:p-7">
+          <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="text-xs tracking-[0.2em] text-zinc-500">正文</p>
               {session?.user && (
@@ -223,9 +223,13 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(145deg,#faf9f5,#efebe2)] p-4 shadow-sm shadow-zinc-900/5">
-            <div className="flex items-center gap-3">
-              <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(150deg,#faf9f5,#efece4)] shadow-sm shadow-zinc-900/5">
+            <div className="border-b border-[var(--line-soft)] bg-[rgba(255,255,255,0.65)] p-4">
+              <p className="text-[11px] tracking-[0.22em] text-zinc-500">AUTHOR PROFILE</p>
+            </div>
+            <div className="space-y-4 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
                 {post.author.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={post.author.image} alt={post.author.name || post.author.email} className="h-full w-full object-cover" />
@@ -235,26 +239,32 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
-                <h4 className="truncate text-xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
-                <p className="text-xs tracking-[0.18em] text-zinc-500">作者信息</p>
+                <div className="min-w-0">
+                  <h4 className="truncate text-xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
+                  <p className="text-xs tracking-[0.16em] text-zinc-500">持续写作记录</p>
+                </div>
               </div>
-            </div>
 
-            <p className="mt-3 text-sm leading-7 text-zinc-600">{post.author.bio || '热爱写作，持续输出。'}</p>
+              <p className="text-sm leading-7 text-zinc-600">{post.author.bio || '热爱写作，持续输出。'}</p>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">文章</p>
-                <p className="text-lg font-semibold text-zinc-800">{authorPostCount}</p>
+              <div className="space-y-2 rounded-xl border border-[var(--line-soft)] bg-white/70 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-zinc-500">文章</p>
+                  <p className="text-sm font-semibold text-zinc-800">{authorPostCount}</p>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                  <div className="h-full rounded-full bg-[var(--accent-moss)]" style={{ width: `${Math.min(100, Math.max(10, authorPostCount * 10))}%` }} />
+                </div>
               </div>
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">标签</p>
-                <p className="text-lg font-semibold text-zinc-800">{globalTagCount}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
-                <p className="text-[11px] tracking-wide text-zinc-500">评论</p>
-                <p className="text-lg font-semibold text-zinc-800">{post.comments.length}</p>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
+                  <p className="text-[11px] tracking-wide text-zinc-500">标签</p>
+                  <p className="text-lg font-semibold text-zinc-800">{globalTagCount}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--line-soft)] bg-white/70 px-2 py-2">
+                  <p className="text-[11px] tracking-wide text-zinc-500">评论</p>
+                  <p className="text-lg font-semibold text-zinc-800">{post.comments.length}</p>
+                </div>
               </div>
             </div>
           </div>

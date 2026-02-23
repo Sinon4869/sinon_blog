@@ -28,7 +28,7 @@ body {
 }
 
 .container-page {
-  @apply mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-8;
+  @apply mx-auto w-full max-w-[1560px] px-4 py-5 sm:px-6 sm:py-8;
 }
 
 @keyframes fadeRiseIn {
@@ -331,4 +331,13 @@ body {
   background: var(--bg-ink);
   color: #fff;
   border-color: var(--bg-ink);
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
