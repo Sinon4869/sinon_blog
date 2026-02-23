@@ -53,7 +53,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   const where = {
     published: true,
-    OR: [{ title: { contains: q, mode: 'insensitive' as const } }, { excerpt: { contains: q, mode: 'insensitive' as const } }]
+    OR: [
+      { title: { contains: q, mode: 'insensitive' as const } },
+      { excerpt: { contains: q, mode: 'insensitive' as const } },
+      { tags: { some: { tag: { name: { contains: q, mode: 'insensitive' as const } } } } }
+    ]
   };
 
   const [posts, total] = await Promise.all([

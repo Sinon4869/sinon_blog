@@ -15,7 +15,11 @@ export async function GET(req: Request) {
 
   const where = {
     published: true,
-    OR: [{ title: { contains: q, mode: 'insensitive' as const } }, { excerpt: { contains: q, mode: 'insensitive' as const } }]
+    OR: [
+      { title: { contains: q, mode: 'insensitive' as const } },
+      { excerpt: { contains: q, mode: 'insensitive' as const } },
+      { tags: { some: { tag: { name: { contains: q, mode: 'insensitive' as const } } } } }
+    ]
   };
 
   const [items, total] = await Promise.all([
