@@ -9,6 +9,7 @@ type User = {
   role: 'USER' | 'ADMIN';
   disabled: number;
   createdAt: string;
+  last_login_at?: string | null;
 };
 
 export function AdminUserTable({ initialUsers }: { initialUsers: User[] }) {
@@ -41,6 +42,7 @@ export function AdminUserTable({ initialUsers }: { initialUsers: User[] }) {
               <th className="px-3 py-2 text-left">昵称</th>
               <th className="px-3 py-2 text-left">角色</th>
               <th className="px-3 py-2 text-left">状态</th>
+              <th className="px-3 py-2 text-left">最近登录</th>
               <th className="px-3 py-2 text-left">操作</th>
             </tr>
           </thead>
@@ -51,6 +53,7 @@ export function AdminUserTable({ initialUsers }: { initialUsers: User[] }) {
                 <td className="px-3 py-2">{u.name || '-'}</td>
                 <td className="px-3 py-2">{u.role}</td>
                 <td className="px-3 py-2">{u.disabled ? '已禁用' : '正常'}</td>
+                <td className="px-3 py-2">{u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-CN') : '-'}</td>
                 <td className="space-x-2 px-3 py-2">
                   <button className="rounded border px-2 py-1" onClick={() => updateUser(u.id, { role: u.role === 'ADMIN' ? 'USER' : 'ADMIN' })}>
                     切换角色
