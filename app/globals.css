@@ -1,3 +1,4 @@
+@import 'cherry-markdown/dist/cherry-markdown.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -250,4 +251,22 @@ body {
   background: var(--bg-ink);
   color: #fff;
   border-color: var(--bg-ink);
+}
+
+.cherry-host .cherry {
+  border: 1px solid #e2dfd6;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.cherry-host .cherry-toolbar {
+  background: #f8f7f3;
+}
+
+.cherry-host .cherry-editor {
+  min-height: 50vh;
+}
+
+.cherry-host .cherry-previewer {
+  background: #fff;
 }

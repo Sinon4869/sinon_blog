@@ -1,16 +1,12 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
-import Underline from '@tiptap/extension-underline';
-import Highlight from '@tiptap/extension-highlight';
-import TextAlign from '@tiptap/extension-text-align';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+type CherryInstance = {
+  getMarkdown: () => string;
+  setValue: (value: string, keepCursor?: boolean) => void;
+  destroy: () => void;
+};
 
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -35,8 +31,20 @@ async function uploadToR2(file: File): Promise<string> {
   return data.url;
 }
 
-function estimateReadingTime(text: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
+function normalizeMarkdownForCount(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/[#>*_\-\[\]()`~|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function estimateReadingTime(markdown: string) {
+  const plain = normalizeMarkdownForCount(markdown);
+  const words = plain ? plain.split(/\s+/).length : 0;
   const minutes = Math.max(1, Math.round(words / 220));
   return { words, minutes };
 }
@@ -53,50 +61,61 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [uploading, setUploading] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const [content, setContent] = useState(post?.content || '');
 
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const cherryRef = useRef<CherryInstance | null>(null);
+  const editorHostRef = useRef<HTMLDivElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Image,
-      Link.configure({ openOnClick: false }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Table.configure({ resizable: true }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Underline,
-      Highlight.configure({ multicolor: true }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] })
-    ],
-    content: post?.content || '<p></p>',
-    editorProps: {
-      attributes: {
-        class: 'simple-editor-content'
-      }
-    }
-  });
+  useEffect(() => {
+    let mounted = true;
 
-  const content = editor?.getHTML() || '';
-  const plainText = editor?.getText() || '';
-  const stat = useMemo(() => estimateReadingTime(plainText), [plainText]);
+    (async () => {
+      const mod = await import('cherry-markdown');
+      if (!mounted || !editorHostRef.current) return;
+      const Cherry = mod.default;
+      const initialValue = post?.content || '';
 
-  async function handleInlineImage(file: File | undefined) {
-    if (!file || !editor) return;
-    setUploading(true);
-    try {
-      const url = await uploadToR2(file);
-      editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '上传失败');
-    } finally {
-      setUploading(false);
-    }
-  }
+      const fileUpload = async (file: File, callback: (url: string, params?: { name?: string }) => void) => {
+        try {
+          const url = await uploadToR2(file);
+          callback(url, { name: file.name });
+        } catch (e) {
+          alert(e instanceof Error ? e.message : '上传失败');
+        }
+      };
+
+      const cherry = new Cherry({
+        el: editorHostRef.current,
+        value: initialValue,
+        locale: 'zh_CN',
+        fileUpload,
+        callback: {
+          fileUpload,
+          afterChange: (cherryInstance: CherryInstance) => {
+            setContent(cherryInstance.getMarkdown());
+          },
+          afterInit: (cherryInstance: CherryInstance) => {
+            setContent(cherryInstance.getMarkdown());
+          }
+        }
+      }) as CherryInstance;
+
+      cherryRef.current = cherry;
+      setEditorReady(true);
+    })();
+
+    return () => {
+      mounted = false;
+      cherryRef.current?.destroy();
+      cherryRef.current = null;
+      setEditorReady(false);
+    };
+  }, [post?.content]);
+
+  const stat = useMemo(() => estimateReadingTime(content), [content]);
 
   async function handleCoverImage(file: File | undefined) {
     if (!file) return;
@@ -124,22 +143,10 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
-  function addOrEditLink() {
-    if (!editor) return;
-    const prev = editor.getAttributes('link').href || '';
-    const url = window.prompt('输入链接 URL', prev);
-    if (url === null) return;
-    if (!url) {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-  }
-
   function openPublishPreview() {
     const titleValue = title.trim();
-    const contentValue = editor?.getHTML() || '';
-    if (!titleValue || !contentValue || contentValue === '<p></p>') {
+    const contentValue = cherryRef.current?.getMarkdown() || '';
+    if (!titleValue || !contentValue.trim()) {
       alert('请先填写标题与正文内容');
       return;
     }
@@ -157,8 +164,6 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     window.location.href = `/write/preview?draft=${encodeURIComponent(encoded)}`;
   }
 
-  if (!editor) return null;
-
   return (
     <form
       action={async (formData) => {
@@ -166,7 +171,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         if (submitAction !== 'draft') return;
         const saveOk = window.confirm(post?.id ? '确认保存草稿修改？' : '确认保存为草稿？');
         if (!saveOk) return;
-        formData.set('content', editor.getHTML());
+        formData.set('content', cherryRef.current?.getMarkdown() || '');
         formData.set('published', 'off');
         await action(formData);
       }}
@@ -233,105 +238,9 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 px-3 py-2">
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().undo().run()} aria-label="undo">
-            ↶
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().redo().run()} aria-label="redo">
-            ↷
-          </button>
-          <span className="mx-1 h-5 w-px bg-zinc-200" />
-
-          <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-            H1
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            H2
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-            H3
-          </button>
-          <span className="mx-1 h-5 w-px bg-zinc-200" />
-
-          <button type="button" className={`tiptap-btn ${editor.isActive('bold') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()}>
-            B
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('italic') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()}>
-            I
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('underline') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-            U
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('strike') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleStrike().run()}>
-            S
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('highlight') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHighlight().run()}>
-            Mark
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('code') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCode().run()}>
-            {'</>'}
-          </button>
-          <span className="mx-1 h-5 w-px bg-zinc-200" />
-
-          <button type="button" className={`tiptap-btn ${editor.isActive('bulletList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            •
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('orderedList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-            1.
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('taskList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleTaskList().run()}>
-            Todo
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('blockquote') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-            Quote
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive('codeBlock') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
-            {'{ }'}
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-            HR
-          </button>
-          <span className="mx-1 h-5 w-px bg-zinc-200" />
-
-          <button type="button" className={`tiptap-btn ${editor.isActive('link') ? 'is-active' : ''}`} onClick={addOrEditLink}>
-            Link
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().unsetLink().run()}>
-            Unlink
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => fileRef.current?.click()}>
-            Image
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
-            Table
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().addColumnBefore().run()}>
-            +Col
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().addRowAfter().run()}>
-            +Row
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().deleteTable().run()}>
-            DelTable
-          </button>
-          <span className="mx-1 h-5 w-px bg-zinc-200" />
-          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'left' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
-            Left
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'center' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
-            Center
-          </button>
-          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'right' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('right').run()}>
-            Right
-          </button>
-          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>
-            Clear
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
-        </div>
-
-        <div className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
-          <EditorContent editor={editor} />
+        <div className="border-b border-zinc-200 px-4 py-2 text-sm text-zinc-500">Cherry Markdown 完整版编辑器</div>
+        <div className="cherry-host min-h-[58vh] bg-white px-2 py-2 md:px-3 md:py-3">
+          <div ref={editorHostRef} />
         </div>
       </div>
 
@@ -339,7 +248,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <span>
           字数：{stat.words} · 预计阅读 {stat.minutes} 分钟
         </span>
-        <span>{uploading ? '图片上传中...' : ''}</span>
+        <span>{uploading ? '图片上传中...' : editorReady ? '编辑器已就绪' : '编辑器加载中...'}</span>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-white p-3 md:static md:border-0 md:bg-transparent md:p-0">
@@ -349,11 +258,11 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             type="submit"
             name="submitAction"
             value="draft"
-            disabled={uploading}
+            disabled={uploading || !editorReady}
           >
             保存草稿
           </button>
-          <button className="btn" type="button" disabled={uploading} onClick={openPublishPreview}>
+          <button className="btn" type="button" disabled={uploading || !editorReady} onClick={openPublishPreview}>
             发布文章
           </button>
         </div>
@@ -361,3 +270,4 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     </form>
   );
 }
+
