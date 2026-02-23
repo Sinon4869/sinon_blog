@@ -33,58 +33,67 @@ function authAudit(event: string, detail: Record<string, unknown> = {}) {
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   pages: { signIn: '/login', error: '/login' },
-  providers: [
-    CredentialsProvider({
-      name: '邮箱密码登录',
-      credentials: {
-        email: { label: '邮箱', type: 'email' },
-        password: { label: '密码', type: 'password' }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          authAudit('credentials_reject', { reason: 'missing_credentials' });
-          return null;
-        }
-
-        const user = await prisma.user.findUnique({ where: { email: credentials.email.toLowerCase() } });
-        if (!user?.password || user.disabled) {
-          authAudit('credentials_reject', {
-            reason: user?.disabled ? 'user_disabled_or_blocked' : 'user_not_found_or_no_password',
-            email: maskEmail(credentials.email)
-          });
-          return null;
-        }
-
-        const valid = await compare(credentials.password, user.password);
-        if (!valid) {
-          authAudit('credentials_reject', { reason: 'bad_password', email: maskEmail(credentials.email) });
-          return null;
-        }
-
-        const role = adminEmails.includes(user.email.toLowerCase()) ? 'ADMIN' : user.role;
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            ...(role !== user.role ? { role } : {}),
-            last_login_at: new Date().toISOString()
+  providers: (() => {
+    const providers: NextAuthOptions['providers'] = [
+      CredentialsProvider({
+        name: '邮箱密码登录',
+        credentials: {
+          email: { label: '邮箱', type: 'email' },
+          password: { label: '密码', type: 'password' }
+        },
+        async authorize(credentials) {
+          if (!credentials?.email || !credentials.password) {
+            authAudit('credentials_reject', { reason: 'missing_credentials' });
+            return null;
           }
-        });
 
-        authAudit('credentials_success', { email: maskEmail(user.email), userId: user.id, role });
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role
-        } as any;
-      }
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID || '',
-      clientSecret: process.env.GOOGLE_SECRET || ''
-    })
-  ],
+          const user = await prisma.user.findUnique({ where: { email: credentials.email.toLowerCase() } });
+          if (!user?.password || user.disabled) {
+            authAudit('credentials_reject', {
+              reason: user?.disabled ? 'user_disabled_or_blocked' : 'user_not_found_or_no_password',
+              email: maskEmail(credentials.email)
+            });
+            return null;
+          }
+
+          const valid = await compare(credentials.password, user.password);
+          if (!valid) {
+            authAudit('credentials_reject', { reason: 'bad_password', email: maskEmail(credentials.email) });
+            return null;
+          }
+
+          const role = adminEmails.includes(user.email.toLowerCase()) ? 'ADMIN' : user.role;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              ...(role !== user.role ? { role } : {}),
+              last_login_at: new Date().toISOString()
+            }
+          });
+
+          authAudit('credentials_success', { email: maskEmail(user.email), userId: user.id, role });
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role
+          } as any;
+        }
+      })
+    ];
+
+    if (process.env.GOOGLE_ID && process.env.GOOGLE_SECRET) {
+      providers.push(
+        GoogleProvider({
+          clientId: process.env.GOOGLE_ID,
+          clientSecret: process.env.GOOGLE_SECRET
+        })
+      );
+    }
+
+    return providers;
+  })(),
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider !== 'google') return true;

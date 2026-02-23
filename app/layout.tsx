@@ -3,8 +3,22 @@ import './globals.css';
 
 import { Navbar } from '@/components/navbar';
 
+function resolveMetadataBase() {
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  if (!raw) return new URL('https://sinon.live');
+  try {
+    return new URL(raw);
+  } catch {
+    try {
+      return new URL(`https://${raw}`);
+    } catch {
+      return new URL('https://sinon.live');
+    }
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live'),
+  metadataBase: resolveMetadataBase(),
   title: 'Komorebi',
   description: 'Next.js 现代博客系统',
   openGraph: {
