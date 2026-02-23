@@ -112,9 +112,10 @@ body {
 }
 
 .prose code {
-  background: rgba(209, 206, 196, 0.36);
+  background: rgba(209, 206, 196, 0.42);
   border-radius: 0.3rem;
   padding: 0.08rem 0.35rem;
+  color: #2c3038;
 }
 
 .prose pre {
@@ -135,6 +136,31 @@ body {
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
+}
+
+.prose pre .hljs-comment,
+.prose pre .hljs-quote {
+  color: #8b9bb4;
+}
+
+.prose pre .hljs-keyword,
+.prose pre .hljs-selector-tag,
+.prose pre .hljs-literal,
+.prose pre .hljs-type {
+  color: #7db3ff;
+}
+
+.prose pre .hljs-string,
+.prose pre .hljs-title,
+.prose pre .hljs-section,
+.prose pre .hljs-attribute {
+  color: #9ed886;
+}
+
+.prose pre .hljs-number,
+.prose pre .hljs-symbol,
+.prose pre .hljs-bullet {
+  color: #f6ba72;
 }
 
 .prose table {
@@ -167,6 +193,13 @@ body {
   min-height: 52vh;
   line-height: 1.7;
   font-size: 18px;
+}
+
+.simple-editor-content code:not(pre code) {
+  background: rgba(209, 206, 196, 0.5);
+  color: #2f3a47;
+  border-radius: 0.3rem;
+  padding: 0.08rem 0.35rem;
 }
 
 .simple-editor-content ul {
@@ -253,7 +286,39 @@ body {
 }
 
 .ProseMirror pre {
-  @apply my-3 overflow-x-auto rounded bg-zinc-900 p-3 text-sm text-zinc-100;
+  background: var(--code-bg, #151920);
+  @apply my-3 overflow-x-auto rounded p-3 text-sm text-zinc-100;
+}
+
+.ProseMirror pre .hljs-comment,
+.ProseMirror pre .hljs-quote {
+  color: #8b9bb4;
+}
+
+.ProseMirror pre .hljs-keyword,
+.ProseMirror pre .hljs-selector-tag,
+.ProseMirror pre .hljs-literal,
+.ProseMirror pre .hljs-type {
+  color: #7db3ff;
+}
+
+.ProseMirror pre .hljs-string,
+.ProseMirror pre .hljs-title,
+.ProseMirror pre .hljs-section,
+.ProseMirror pre .hljs-attribute {
+  color: #9ed886;
+}
+
+.ProseMirror pre .hljs-number,
+.ProseMirror pre .hljs-symbol,
+.ProseMirror pre .hljs-bullet {
+  color: #f6ba72;
+}
+
+.ProseMirror pre .hljs-variable,
+.ProseMirror pre .hljs-template-variable,
+.ProseMirror pre .hljs-built_in {
+  color: #ffb0a9;
 }
 
 .tiptap-btn {

@@ -1,17 +1,20 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
+import { createLowlight, common } from 'lowlight';
 import { marked } from 'marked';
+import { AppModal } from '@/components/app-modal';
 
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -76,6 +79,26 @@ function ToolButton({
   );
 }
 
+const lowlight = createLowlight(common);
+const CodeBlock = CodeBlockLowlight.extend({
+  addAttributes() {
+    return {
+      ...(this.parent?.() || {}),
+      backgroundColor: {
+        default: '#151920',
+        parseHTML: (element) => element.getAttribute('data-bg') || '#151920',
+        renderHTML: (attributes) => {
+          if (!attributes.backgroundColor) return {};
+          return {
+            'data-bg': attributes.backgroundColor,
+            style: `background-color:${attributes.backgroundColor};`
+          };
+        }
+      }
+    };
+  }
+}).configure({ lowlight });
+
 export function WriteEditor({ action, post }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
@@ -84,16 +107,23 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [uploading, setUploading] = useState(false);
   const [content, setContent] = useState(post?.content || '');
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkValue, setLinkValue] = useState('');
+  const [codeLanguage, setCodeLanguage] = useState('plaintext');
+  const [codeBackground, setCodeBackground] = useState('#151920');
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ codeBlock: false }),
       Image,
       Link.configure({ openOnClick: false }),
+      CodeBlock,
       TaskList,
       TaskItem.configure({ nested: true }),
       Table.configure({ resizable: true }),
@@ -120,6 +150,23 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
 
   const plainText = editor?.getText() || '';
   const stat = useMemo(() => estimateReadingTime(plainText), [plainText]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const syncCodeAttrs = () => {
+      if (!editor.isActive('codeBlock')) return;
+      const attrs = editor.getAttributes('codeBlock') as { language?: string; backgroundColor?: string };
+      setCodeLanguage(attrs.language || 'plaintext');
+      setCodeBackground(attrs.backgroundColor || '#151920');
+    };
+    syncCodeAttrs();
+    editor.on('selectionUpdate', syncCodeAttrs);
+    editor.on('transaction', syncCodeAttrs);
+    return () => {
+      editor.off('selectionUpdate', syncCodeAttrs);
+      editor.off('transaction', syncCodeAttrs);
+    };
+  }, [editor]);
 
   async function handleInlineImage(file: File | undefined) {
     if (!file || !editor) return;
@@ -163,13 +210,8 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   function addOrEditLink() {
     if (!editor) return;
     const prev = editor.getAttributes('link').href || '';
-    const url = window.prompt('输入链接 URL', prev);
-    if (url === null) return;
-    if (!url) {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    setLinkValue(prev);
+    setShowLinkModal(true);
   }
 
   function insertCodeBlock() {
@@ -178,7 +220,34 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       editor.chain().focus().toggleCodeBlock().run();
       return;
     }
-    editor.chain().focus().setCodeBlock().insertContent('// 在这里输入代码').run();
+    editor
+      .chain()
+      .focus()
+      .setCodeBlock({ language: codeLanguage })
+      .updateAttributes('codeBlock', { backgroundColor: codeBackground })
+      .insertContent('// 在这里输入代码')
+      .run();
+  }
+
+  function applyCodeBlockOptions() {
+    if (!editor || !editor.isActive('codeBlock')) return;
+    editor.chain().focus().updateAttributes('codeBlock', { language: codeLanguage, backgroundColor: codeBackground }).run();
+  }
+
+  function toggleInlineCode() {
+    if (!editor) return;
+    if (editor.isActive('codeBlock')) return;
+    editor.chain().focus().toggleCode().run();
+  }
+
+  async function saveDraftWithConfirm() {
+    if (!formRef.current || !editor) return;
+    const formData = new FormData(formRef.current);
+    formData.set('content', editor.getHTML());
+    formData.set('coverImage', coverImage);
+    formData.set('backgroundImage', backgroundImage);
+    formData.set('published', 'off');
+    await action(formData);
   }
 
   function openPublishPreview() {
@@ -205,18 +274,8 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   if (!editor) return null;
 
   return (
-    <form
-      action={async (formData) => {
-        const submitAction = String(formData.get('submitAction') || 'draft');
-        if (submitAction !== 'draft') return;
-        const saveOk = window.confirm(post?.id ? '确认保存草稿修改？' : '确认保存为草稿？');
-        if (!saveOk) return;
-        formData.set('content', editor.getHTML());
-        formData.set('published', 'off');
-        await action(formData);
-      }}
-      className="space-y-4 pb-24 md:pb-0"
-    >
+    <>
+    <form ref={formRef} className="space-y-4 pb-24 md:pb-0">
       <input type="hidden" name="id" value={post?.id || ''} />
       <input type="hidden" name="content" value={content} />
       <input type="hidden" name="coverImage" value={coverImage} />
@@ -278,7 +337,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="space-y-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+        <div className="sticky top-[76px] z-20 space-y-2 border-b border-zinc-200 bg-zinc-50/95 px-3 py-2 backdrop-blur">
           <div className="flex flex-wrap items-center gap-1">
             <ToolButton label="↶" onClick={() => editor.chain().focus().undo().run()} />
             <ToolButton label="↷" onClick={() => editor.chain().focus().redo().run()} />
@@ -294,7 +353,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <ToolButton label="U" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} />
             <ToolButton label="S" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} />
             <ToolButton label="Mark" active={editor.isActive('highlight')} onClick={() => editor.chain().focus().toggleHighlight().run()} />
-            <ToolButton label="行内代码" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()} />
+            <ToolButton label="行内代码" active={editor.isActive('code')} onClick={toggleInlineCode} />
             <ToolButton label="代码块" active={editor.isActive('codeBlock')} onClick={insertCodeBlock} />
             <span className="mx-1 h-5 w-px bg-zinc-200" />
 
@@ -327,6 +386,39 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
               <ToolButton label="清除格式" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
             </div>
           </details>
+          {editor.isActive('codeBlock') && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-2">
+              <label className="text-xs text-zinc-600">语言</label>
+              <select
+                className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs"
+                value={codeLanguage}
+                onChange={(e) => setCodeLanguage(e.target.value)}
+              >
+                <option value="plaintext">Plain</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="json">JSON</option>
+                <option value="bash">Bash</option>
+                <option value="python">Python</option>
+                <option value="go">Go</option>
+                <option value="java">Java</option>
+                <option value="sql">SQL</option>
+                <option value="xml">XML</option>
+                <option value="yaml">YAML</option>
+              </select>
+              <label className="ml-1 text-xs text-zinc-600">背景色</label>
+              <input
+                aria-label="代码块背景色"
+                className="h-7 w-10 rounded border border-zinc-300 bg-white p-0.5"
+                onChange={(e) => setCodeBackground(e.target.value)}
+                type="color"
+                value={codeBackground}
+              />
+              <button className="tiptap-btn" onClick={applyCodeBlockOptions} type="button">
+                应用代码块样式
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
@@ -345,10 +437,9 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-            type="submit"
-            name="submitAction"
-            value="draft"
+            type="button"
             disabled={uploading}
+            onClick={() => setShowSaveConfirm(true)}
           >
             保存草稿
           </button>
@@ -358,6 +449,40 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         </div>
       </div>
     </form>
+    <AppModal
+      open={showSaveConfirm}
+      title="确认保存草稿"
+      description={post?.id ? '将覆盖当前草稿内容。' : '将创建新的草稿内容。'}
+      onCancel={() => setShowSaveConfirm(false)}
+      onConfirm={async () => {
+        setShowSaveConfirm(false);
+        await saveDraftWithConfirm();
+      }}
+      confirmText="确认保存"
+    >
+      <p className="text-sm text-zinc-600">当前编辑内容会保存到草稿，之后可继续编辑或发布。</p>
+    </AppModal>
+    <AppModal
+      open={showLinkModal}
+      title="插入链接"
+      description="请输入完整 URL（例如 https://example.com）"
+      onCancel={() => setShowLinkModal(false)}
+      onConfirm={() => {
+        if (!editor) return;
+        const url = linkValue.trim();
+        if (!url) {
+          editor.chain().focus().extendMarkRange('link').unsetLink().run();
+          setShowLinkModal(false);
+          return;
+        }
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        setShowLinkModal(false);
+      }}
+      confirmText="应用链接"
+    >
+      <label className="mb-1 block text-sm text-zinc-600">链接 URL</label>
+      <input className="input" value={linkValue} onChange={(e) => setLinkValue(e.target.value)} placeholder="https://..." />
+    </AppModal>
+    </>
   );
 }
-
