@@ -255,59 +255,77 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       )}
 
       <div className="card space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold tracking-wide text-zinc-500">TipTap 富文本编辑器</p>
-          <div className="flex items-center gap-2 text-xs">
-            <button type="button" className="rounded border px-2 py-1" onClick={() => editor.chain().focus().undo().run()}>
+        <div className="tiptap-shell overflow-hidden rounded-xl border border-zinc-200">
+          <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 bg-zinc-50 p-2">
+            <button type="button" className={`tiptap-btn ${editor.isActive('paragraph') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setParagraph().run()}>
+              P
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+              H1
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+              H2
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+              H3
+            </button>
+            <span className="mx-1 h-5 w-px bg-zinc-300" />
+            <button type="button" className={`tiptap-btn ${editor.isActive('bold') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBold().run()}>
+              B
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('italic') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()}>
+              I
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('strike') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleStrike().run()}>
+              S
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('code') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCode().run()}>
+              {'</>'}
+            </button>
+            <span className="mx-1 h-5 w-px bg-zinc-300" />
+            <button type="button" className={`tiptap-btn ${editor.isActive('bulletList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              • 列表
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('orderedList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              1. 列表
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('blockquote') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+              引用
+            </button>
+            <button type="button" className={`tiptap-btn ${editor.isActive('codeBlock') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+              代码块
+            </button>
+            <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
+              分割线
+            </button>
+            <span className="mx-1 h-5 w-px bg-zinc-300" />
+            <button
+              type="button"
+              className={`tiptap-btn ${editor.isActive('link') ? 'is-active' : ''}`}
+              onClick={() => {
+                const url = window.prompt('输入链接 URL');
+                if (!url) return;
+                editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+              }}
+            >
+              链接
+            </button>
+            <button type="button" className="tiptap-btn" onClick={() => fileRef.current?.click()}>
+              添加图片
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
+            <span className="mx-1 h-5 w-px bg-zinc-300" />
+            <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().undo().run()}>
               撤销
             </button>
-            <button type="button" className="rounded border px-2 py-1" onClick={() => editor.chain().focus().redo().run()}>
+            <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().redo().run()}>
               重做
             </button>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2">
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('heading', { level: 1 }) ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-            H1
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('heading', { level: 2 }) ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            H2
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('bold') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBold().run()}>
-            加粗
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('bulletList') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            无序列表
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('orderedList') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-            有序列表
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('codeBlock') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
-            代码块
-          </button>
-          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('blockquote') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-            引用
-          </button>
-          <button
-            type="button"
-            className={`rounded border px-2 py-1 text-xs ${editor.isActive('link') ? 'bg-zinc-900 text-white' : 'bg-white'}`}
-            onClick={() => {
-              const url = window.prompt('输入链接 URL');
-              if (!url) return;
-              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-            }}
-          >
-            链接
-          </button>
-          <button type="button" className="rounded border bg-white px-2 py-1 text-xs" onClick={() => fileRef.current?.click()}>
-            上传正文图片
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
-        </div>
-
-        <div className="min-h-[50vh] rounded-md border border-zinc-300 bg-white p-3 md:min-h-[65vh]">
-          <EditorContent editor={editor} />
+          <div className="min-h-[52vh] bg-white p-4 md:min-h-[68vh]">
+            <EditorContent editor={editor} />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
