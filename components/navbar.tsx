@@ -22,6 +22,7 @@ export async function Navbar() {
         {/* Desktop nav */}
         <nav className="hidden items-center gap-4 text-sm md:flex">
           <Link href="/">首页</Link>
+          <Link href="/search">搜索</Link>
           <Link href="/write">写文章</Link>
           <Link href="/dashboard">控制台</Link>
           {session?.user?.role === 'ADMIN' && <Link href="/admin">后台</Link>}
@@ -53,6 +54,9 @@ export async function Navbar() {
           <nav className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
             <Link href="/" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
               首页
+            </Link>
+            <Link href="/search" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
+              搜索
             </Link>
             <Link href="/write" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
               写文章
