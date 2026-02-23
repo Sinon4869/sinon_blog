@@ -31,8 +31,28 @@ async function run(sql: string, ...bindings: any[]) {
   return db.prepare(sql).bind(...bindings).run();
 }
 
+let settingsTableEnsured = false;
+async function ensureSettingsTable() {
+  if (settingsTableEnsured) return;
+  await run(
+    'CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
+  );
+  settingsTableEnsured = true;
+}
+
 function toDate(v: any): Date | null {
   return v ? new Date(v) : null;
+}
+
+function toBool(v: any): boolean {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0 || v == null) return false;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === '1' || s === 'true' || s === 'yes') return true;
+    if (s === '0' || s === 'false' || s === 'no' || s === '') return false;
+  }
+  return Boolean(v);
 }
 
 export const prisma = {
@@ -137,7 +157,13 @@ export const prisma = {
       if (!key[1]) return null;
       const post0 = (await one(`SELECT * FROM posts WHERE ${key[0]} = ?`, key[1])) as any;
       if (!post0) return null;
-      const post: any = { ...post0, published: !!post0.published, createdAt: toDate(post0.createdAt), updatedAt: toDate(post0.updatedAt), publishedAt: toDate(post0.publishedAt) };
+      const post: any = {
+        ...post0,
+        published: toBool(post0.published),
+        createdAt: toDate(post0.createdAt),
+        updatedAt: toDate(post0.updatedAt),
+        publishedAt: toDate(post0.publishedAt)
+      };
       if (select?.slug) return { slug: post.slug };
       if (include?.author) post.author = await one('SELECT * FROM users WHERE id = ?', post.authorId);
       if (include?.tags) {
@@ -164,7 +190,10 @@ export const prisma = {
       const clauses = [] as string[];
       const vals: any[] = [];
       if (where.published !== undefined) {
-        clauses.push('p.published = ?');
+        clauses.push(`CASE
+          WHEN p.published IN (1, '1', 'true', 'TRUE', true) THEN 1
+          ELSE 0
+        END = ?`);
         vals.push(where.published ? 1 : 0);
       }
       if (where.authorId) {
@@ -184,7 +213,13 @@ export const prisma = {
       const limit = args.take ? ` LIMIT ${Number(args.take)}` : '';
       const offset = args.skip ? ` OFFSET ${Number(args.skip)}` : '';
       const rows0 = await many<any>(`SELECT p.* FROM posts p ${whereSql} ORDER BY p.publishedAt DESC, p.createdAt DESC${limit}${offset}`, ...vals);
-      const rows = rows0.map((p) => ({ ...p, published: !!p.published, createdAt: toDate(p.createdAt), updatedAt: toDate(p.updatedAt), publishedAt: toDate(p.publishedAt) }));
+      const rows = rows0.map((p) => ({
+        ...p,
+        published: toBool(p.published),
+        createdAt: toDate(p.createdAt),
+        updatedAt: toDate(p.updatedAt),
+        publishedAt: toDate(p.publishedAt)
+      }));
 
       if (args.select) {
         return Promise.all(
@@ -235,7 +270,12 @@ export const prisma = {
     async update({ where, data }: any) {
       const fields = Object.keys(data || {});
       const set = fields.map((f) => `${f} = ?`).join(', ');
-      await run(`UPDATE posts SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, ...fields.map((f) => data[f]), where.id);
+      const bindings = fields.map((f) => {
+        if (f === 'published') return data[f] ? 1 : 0;
+        if (f === 'publishedAt' && data[f]) return new Date(data[f]).toISOString();
+        return data[f];
+      });
+      await run(`UPDATE posts SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, ...bindings, where.id);
       return (await one('SELECT * FROM posts WHERE id = ?', where.id)) as any;
     },
     async delete({ where }: any) {
@@ -246,7 +286,10 @@ export const prisma = {
       const clauses: string[] = [];
       const vals: any[] = [];
       if (where?.published !== undefined) {
-        clauses.push('published = ?');
+        clauses.push(`CASE
+          WHEN published IN (1, '1', 'true', 'TRUE', true) THEN 1
+          ELSE 0
+        END = ?`);
         vals.push(where.published ? 1 : 0);
       }
       const sql = `SELECT COUNT(*) as c FROM posts ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}`;
@@ -405,6 +448,23 @@ export const prisma = {
     async findMany({ take }: any = {}) {
       const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 20';
       return many(`SELECT * FROM audit_logs ORDER BY created_at DESC${limit}`);
+    }
+  },
+  setting: {
+    async get(key: string) {
+      await ensureSettingsTable();
+      return one<{ key: string; value: string; updated_at: string }>('SELECT * FROM site_settings WHERE key = ?', key);
+    },
+    async set(key: string, value: string) {
+      await ensureSettingsTable();
+      await run(
+        `INSERT INTO site_settings (key, value, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+        key,
+        value
+      );
+      return this.get(key);
     }
   }
 };

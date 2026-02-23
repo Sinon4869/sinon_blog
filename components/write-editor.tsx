@@ -46,7 +46,6 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [tags, setTags] = useState(post?.tags || '');
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
-  const [published, setPublished] = useState(!!post?.published);
   const [uploading, setUploading] = useState(false);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -106,12 +105,38 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
+  function openPublishPreview() {
+    const titleValue = title.trim();
+    const contentValue = editor?.getHTML() || '';
+    if (!titleValue || !contentValue || contentValue === '<p></p>') {
+      alert('请先填写标题与正文内容');
+      return;
+    }
+
+    const payload = {
+      id: post?.id,
+      title: titleValue,
+      excerpt: excerpt.trim(),
+      content: contentValue,
+      tags: tags.trim(),
+      coverImage: coverImage.trim(),
+      backgroundImage: backgroundImage.trim()
+    };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    window.location.href = `/write/preview?draft=${encodeURIComponent(encoded)}`;
+  }
+
   if (!editor) return null;
 
   return (
     <form
       action={async (formData) => {
+        const submitAction = String(formData.get('submitAction') || 'draft');
+        if (submitAction !== 'draft') return;
+        const saveOk = window.confirm(post?.id ? '确认保存草稿修改？' : '确认保存为草稿？');
+        if (!saveOk) return;
         formData.set('content', editor.getHTML());
+        formData.set('published', 'off');
         await action(formData);
       }}
       className="space-y-4 pb-24 md:pb-0"
@@ -254,14 +279,21 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <span>{uploading ? '图片上传中...' : ''}</span>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="published" checked={published} onChange={(e) => setPublished(e.target.checked)} /> 发布
-      </label>
-
       <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-white p-3 md:static md:border-0 md:bg-transparent md:p-0">
-        <button className="btn w-full md:w-auto" type="submit" disabled={uploading}>
-          保存文章
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+            type="submit"
+            name="submitAction"
+            value="draft"
+            disabled={uploading}
+          >
+            保存草稿
+          </button>
+          <button className="btn" type="button" disabled={uploading} onClick={openPublishPreview}>
+            发布文章
+          </button>
+        </div>
       </div>
     </form>
   );

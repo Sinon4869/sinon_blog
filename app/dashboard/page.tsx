@@ -3,7 +3,8 @@ import type { Route } from 'next';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
-import { deletePost, setPostPublished } from '@/app/actions';
+import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
+import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { formatDate } from '@/lib/utils';
@@ -43,6 +44,7 @@ function buildHref(q: string, status: string, page: number) {
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardSearchParams> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
+  const isAdmin = session.user.role === 'ADMIN';
 
   const sp = await searchParams;
   const q = (sp.q || '').trim();
@@ -60,11 +62,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       : {})
   };
 
-  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites] = await Promise.all([
+  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting] = await Promise.all([
     prisma.post.findMany({ where: { authorId: session.user.id }, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
-    prisma.favorite.findMany({ where: { userId: session.user.id } })
+    prisma.favorite.findMany({ where: { userId: session.user.id } }),
+    isAdmin ? prisma.setting.get('site_title') : Promise.resolve(null),
+    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null)
   ]);
 
   const allMine = (allMineRaw as PostItem[]) || [];
@@ -74,6 +78,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const publishedCount = allMine.filter((p) => p.published).length;
   const draftCount = allMine.length - publishedCount;
   const totalPages = Math.max(1, Math.ceil(allMatched.length / PAGE_SIZE));
+  const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
+  const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
 
   return (
     <div className="space-y-6">
@@ -83,9 +89,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <p className="text-xs tracking-[0.25em] text-zinc-500">DASHBOARD</p>
             <h1 className="mt-2 text-2xl font-semibold text-zinc-800 sm:text-3xl">文章管理控制台</h1>
           </div>
-          <Link href="/write/new" className="btn">
-            新建文章
-          </Link>
+          <form action="/write/new" method="get">
+            <ConfirmSubmitButton confirmText="确认新建文章？将进入写作页面。" className="btn">
+              新建文章
+            </ConfirmSubmitButton>
+          </form>
         </div>
       </section>
 
@@ -122,6 +130,32 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </Link>
         )}
       </form>
+
+      {isAdmin && (
+        <section className="card space-y-3">
+          <h2 className="text-lg font-semibold text-zinc-800">站点配置</h2>
+          <form action={saveSiteConfig} className="grid gap-3">
+            <div>
+              <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
+              <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-zinc-600">文章分类（逗号或换行分隔）</label>
+              <textarea
+                className="input min-h-24"
+                name="categories"
+                defaultValue={navCategories}
+                placeholder={'复盘, 实践, 总结, 教程'}
+              />
+            </div>
+            <div>
+              <ConfirmSubmitButton confirmText="确认保存站点配置？修改后导航将即时更新。" className="btn">
+                保存配置
+              </ConfirmSubmitButton>
+            </div>
+          </form>
+        </section>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/60">
         <div className="overflow-x-auto">
@@ -165,15 +199,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                       <form action={setPostPublished}>
                         <input type="hidden" name="id" value={post.id} />
                         <input type="hidden" name="nextPublished" value={post.published ? '0' : '1'} />
-                        <button type="submit" className="rounded border border-[var(--line-strong)] px-2 py-1 text-xs hover:bg-zinc-100">
+                        <ConfirmSubmitButton
+                          confirmText={post.published ? '确认将该文章转为草稿？' : '确认发布该文章？'}
+                          className="rounded border border-[var(--line-strong)] px-2 py-1 text-xs hover:bg-zinc-100"
+                        >
                           {post.published ? '转草稿' : '发布'}
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                       <form action={deletePost}>
                         <input type="hidden" name="id" value={post.id} />
-                        <button type="submit" className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50">
+                        <ConfirmSubmitButton confirmText="确认删除该文章？此操作不可恢复。" className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50">
                           删除
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     </div>
                   </td>

@@ -122,7 +122,7 @@ export async function setPostPublished(formData: FormData) {
   await prisma.post.update({
     where: { id },
     data: {
-      published: nextPublished,
+      published: nextPublished ? 1 : 0,
       publishedAt: nextPublished ? new Date() : null
     }
   });
@@ -130,6 +130,39 @@ export async function setPostPublished(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/dashboard');
   if (post.slug) revalidatePath(`/posts/${post.slug}`);
+}
+
+export async function saveSiteConfig(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可修改站点配置');
+
+  const siteTitleRaw = formData.get('siteTitle')?.toString().trim() || 'Komorebi';
+  const siteTitle = siteTitleRaw.slice(0, 40) || 'Komorebi';
+  const categoriesRaw = formData.get('categories')?.toString() || '';
+  const categoryNames = Array.from(
+    new Set(
+      categoriesRaw
+        .split(/[\n,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 20);
+
+  await prisma.setting.set('site_title', siteTitle);
+  await prisma.setting.set('nav_categories', categoryNames.join(','));
+
+  for (const name of categoryNames) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    await prisma.tag.upsert({
+      where: { slug },
+      update: { name },
+      create: { name, slug }
+    });
+  }
+
+  revalidatePath('/');
+  revalidatePath('/dashboard');
 }
 
 export async function saveProfile(formData: FormData) {

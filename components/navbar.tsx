@@ -4,28 +4,42 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/utils';
 
 export async function Navbar() {
   let session: any = null;
   let tags: Array<{ id: string; name: string; slug: string }> = [];
+  let siteTitle = 'Komorebi';
   try {
-    const [rawSession, rawTags] = await Promise.all([
+    const [rawSession, rawTags, titleSetting, categoriesSetting] = await Promise.all([
       getServerSession(authOptions),
       prisma.tag.findMany({
         select: { id: true, name: true, slug: true },
         orderBy: { name: 'asc' },
         take: 8
-      })
+      }),
+      prisma.setting.get('site_title'),
+      prisma.setting.get('nav_categories')
     ]);
     session = rawSession;
-    tags = (rawTags as Array<Record<string, unknown>>).map((t) => ({
+    const dbTags = (rawTags as Array<Record<string, unknown>>).map((t) => ({
       id: String(t.id || ''),
       name: String(t.name || ''),
       slug: String(t.slug || '')
     }));
+    const configuredNames = String(categoriesSetting?.value || '')
+      .split(/[\n,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    tags =
+      configuredNames.length > 0
+        ? configuredNames.map((name, i) => ({ id: `cfg-${i}`, name, slug: slugify(name) || name }))
+        : dbTags;
+    siteTitle = String(titleSetting?.value || '').trim() || 'Komorebi';
   } catch {
     session = null;
     tags = [];
+    siteTitle = 'Komorebi';
   }
 
   return (
@@ -33,7 +47,7 @@ export async function Navbar() {
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-200 text-xs">木</span>
-          <span>Komorebi</span>
+          <span>{siteTitle}</span>
         </Link>
 
         {/* Desktop nav */}
