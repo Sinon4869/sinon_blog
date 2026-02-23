@@ -59,6 +59,20 @@ body {
   line-height: 1.95;
 }
 
+.prose ul {
+  list-style: disc;
+  padding-left: 1.4rem;
+}
+
+.prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.prose li {
+  margin: 0.2rem 0;
+}
+
 .prose h1,
 .prose h2,
 .prose h3 {
@@ -107,6 +121,25 @@ body {
   overflow-wrap: normal;
 }
 
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid #d6d2c7;
+  padding: 0.55rem 0.65rem;
+  vertical-align: top;
+}
+
+.prose th {
+  background: #f1eee6;
+  font-weight: 600;
+}
+
 .ProseMirror {
   min-height: 42vh;
   outline: none;
@@ -118,6 +151,64 @@ body {
   min-height: 52vh;
   line-height: 1.7;
   font-size: 18px;
+}
+
+.simple-editor-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.simple-editor-content ol {
+  list-style: decimal;
+  padding-left: 1.6rem;
+}
+
+.simple-editor-content li {
+  margin: 0.2rem 0;
+}
+
+.simple-editor-content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.simple-editor-content ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.simple-editor-content ul[data-type='taskList'] li > label {
+  margin-top: 0.2rem;
+}
+
+.simple-editor-content table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.simple-editor-content table td,
+.simple-editor-content table th {
+  border: 1px solid #d6d2c7;
+  min-width: 1em;
+  padding: 0.45rem 0.5rem;
+  vertical-align: top;
+  position: relative;
+}
+
+.simple-editor-content table th {
+  background: #f1eee6;
+  font-weight: 600;
+}
+
+.simple-editor-content .selectedCell:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 130, 120, 0.16);
+  pointer-events: none;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {

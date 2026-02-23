@@ -5,6 +5,12 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import Underline from '@tiptap/extension-underline';
+import Highlight from '@tiptap/extension-highlight';
+import TextAlign from '@tiptap/extension-text-align';
 
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -53,7 +59,20 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const backgroundRef = useRef<HTMLInputElement | null>(null);
 
   const editor = useEditor({
-    extensions: [StarterKit, Image, Link.configure({ openOnClick: false })],
+    extensions: [
+      StarterKit,
+      Image,
+      Link.configure({ openOnClick: false }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Underline,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] })
+    ],
     content: post?.content || '<p></p>',
     editorProps: {
       attributes: {
@@ -103,6 +122,18 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     } finally {
       setUploading(false);
     }
+  }
+
+  function addOrEditLink() {
+    if (!editor) return;
+    const prev = editor.getAttributes('link').href || '';
+    const url = window.prompt('输入链接 URL', prev);
+    if (url === null) return;
+    if (!url) {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }
 
   function openPublishPreview() {
@@ -228,8 +259,14 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           <button type="button" className={`tiptap-btn ${editor.isActive('italic') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleItalic().run()}>
             I
           </button>
+          <button type="button" className={`tiptap-btn ${editor.isActive('underline') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+            U
+          </button>
           <button type="button" className={`tiptap-btn ${editor.isActive('strike') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleStrike().run()}>
             S
+          </button>
+          <button type="button" className={`tiptap-btn ${editor.isActive('highlight') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleHighlight().run()}>
+            Mark
           </button>
           <button type="button" className={`tiptap-btn ${editor.isActive('code') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCode().run()}>
             {'</>'}
@@ -242,27 +279,53 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           <button type="button" className={`tiptap-btn ${editor.isActive('orderedList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
             1.
           </button>
+          <button type="button" className={`tiptap-btn ${editor.isActive('taskList') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleTaskList().run()}>
+            Todo
+          </button>
           <button type="button" className={`tiptap-btn ${editor.isActive('blockquote') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
             Quote
           </button>
           <button type="button" className={`tiptap-btn ${editor.isActive('codeBlock') ? 'is-active' : ''}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
             {'{ }'}
           </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
+            HR
+          </button>
           <span className="mx-1 h-5 w-px bg-zinc-200" />
 
-          <button
-            type="button"
-            className={`tiptap-btn ${editor.isActive('link') ? 'is-active' : ''}`}
-            onClick={() => {
-              const url = window.prompt('输入链接 URL');
-              if (!url) return;
-              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-            }}
-          >
+          <button type="button" className={`tiptap-btn ${editor.isActive('link') ? 'is-active' : ''}`} onClick={addOrEditLink}>
             Link
           </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().unsetLink().run()}>
+            Unlink
+          </button>
           <button type="button" className="tiptap-btn" onClick={() => fileRef.current?.click()}>
-            Add
+            Image
+          </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+            Table
+          </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+            +Col
+          </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().addRowAfter().run()}>
+            +Row
+          </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().deleteTable().run()}>
+            DelTable
+          </button>
+          <span className="mx-1 h-5 w-px bg-zinc-200" />
+          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'left' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+            Left
+          </button>
+          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'center' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+            Center
+          </button>
+          <button type="button" className={`tiptap-btn ${editor.isActive({ textAlign: 'right' }) ? 'is-active' : ''}`} onClick={() => editor.chain().focus().setTextAlign('right').run()}>
+            Right
+          </button>
+          <button type="button" className="tiptap-btn" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>
+            Clear
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
         </div>
