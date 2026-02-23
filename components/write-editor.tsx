@@ -116,12 +116,15 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [toolbarDocked, setToolbarDocked] = useState(false);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const toolbarAnchorRef = useRef<HTMLDivElement | null>(null);
+  const editorShellRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -163,17 +166,35 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       setToolbarDocked(false);
       return;
     }
-    const el = toolbarAnchorRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setToolbarDocked(!entry.isIntersecting);
-      },
-      { threshold: 1, rootMargin: '-90px 0px 0px 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    const anchorEl = toolbarAnchorRef.current;
+    const shellEl = editorShellRef.current;
+    if (!anchorEl || !shellEl) return;
+
+    const TOP_OFFSET = 98;
+    const onScroll = () => {
+      const anchorTop = anchorEl.getBoundingClientRect().top;
+      const shellBottom = shellEl.getBoundingClientRect().bottom;
+      const canDock = shellBottom - TOP_OFFSET > 140;
+      setToolbarDocked(anchorTop <= TOP_OFFSET && canDock);
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [pinToolbar]);
+
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const update = () => setToolbarHeight(el.getBoundingClientRect().height);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [toolbarDocked]);
 
   useEffect(() => {
     if (!editor) return;
@@ -371,10 +392,14 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </details>
 
       <div ref={toolbarAnchorRef} className="h-px w-full" />
-      <div className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div ref={editorShellRef} className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        {toolbarDocked && pinToolbar && <div aria-hidden className="hidden md:block" style={{ height: `${toolbarHeight}px` }} />}
         <div className="border-b border-zinc-200 bg-zinc-50/70">
           <div
-            className={`${pinToolbar ? 'md:sticky md:top-[86px]' : ''} z-30 border-b border-zinc-200 px-2 py-2 transition-all duration-300 md:px-3 ${
+            ref={toolbarRef}
+            className={`z-30 border-b border-zinc-200 px-2 py-2 transition-all duration-300 md:px-3 ${
+              toolbarDocked && pinToolbar ? 'md:fixed md:left-1/2 md:top-[92px] md:w-[min(96vw,1320px)] md:-translate-x-1/2' : ''
+            } ${
               toolbarDocked
                 ? 'bg-[rgba(247,246,242,0.92)] shadow-[0_10px_24px_-16px_rgba(40,40,40,0.45)] backdrop-blur-xl'
                 : 'bg-zinc-50/95 backdrop-blur'
