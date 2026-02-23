@@ -93,7 +93,7 @@ export const authOptions: NextAuthOptions = {
       const emailVerified = (profile as any)?.email_verified === true;
       if (!emailVerified) {
         authAudit('google_reject', { reason: 'email_not_verified', email: maskEmail(email) });
-        return false;
+        return '/login?error=EmailNotVerified';
       }
 
       const existingAccount = await prisma.account.findUnique({

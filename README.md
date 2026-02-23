@@ -37,7 +37,8 @@ wrangler d1 execute 1acc05d4-49bb-4306-8115-5646a945dc9c --remote --file=./d1/sc
 wrangler d1 execute b188ca51-b44e-48c5-8463-baf3091fc279 --remote --file=./d1/schema.sql
 
 # 已有库增量迁移（新增 users.disabled 字段）
-wrangler d1 execute 1acc05d4-49bb-4306-8115-5646a945dc9c --remote --file=./d1/migrations/20260222_add_user_disabled.sql
+# 迁移文件命名规范：YYYYMMDDHHmm__desc.sql
+wrangler d1 execute 1acc05d4-49bb-4306-8115-5646a945dc9c --remote --file=./d1/migrations/202602221000__add_user_disabled.sql
 
 # 本地（可选）
 wrangler d1 execute --local --file=./d1/schema.sql
