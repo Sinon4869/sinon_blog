@@ -35,6 +35,11 @@ function estimateReadingTime(text: string) {
   return { words, minutes };
 }
 
+function todayLabel() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function WriteEditor({ action, post }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
@@ -120,38 +125,61 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <input className="input text-lg font-semibold" name="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="文章标题" required />
         <input className="input" name="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="一句话摘要（可选）" />
         <input className="input" name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="标签，逗号分隔（可选）" />
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4">
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 p-3 sm:grid sm:grid-cols-[320px_1fr_28px] sm:gap-6">
+          {coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverImage} alt="cover-preview" className="h-56 w-full rounded-lg object-cover sm:h-[260px]" />
+          ) : (
+            <div className="h-56 w-full rounded-lg bg-zinc-200 sm:h-[260px]" />
+          )}
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-zinc-500">{todayLabel()}</p>
+            <p className="text-3xl font-bold text-zinc-700 sm:text-4xl">{title || '这里显示标题预览'}</p>
+            <p className="text-xl text-zinc-600">{excerpt || '这里显示摘要预览'}</p>
+          </div>
+          <div className="hidden items-center justify-center sm:flex">
+            <div className="space-y-3">
+              <div className="h-12 w-3 rounded-full bg-emerald-500" />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-3 w-3 rounded-full bg-zinc-300" />
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+          <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
             <p className="text-sm font-medium text-zinc-700">封面图（列表卡片）</p>
             <input className="input" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
             <button type="button" className="tiptap-btn" onClick={() => coverRef.current?.click()}>
               上传封面图
             </button>
             <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleCoverImage(e.target.files?.[0])} />
-            {coverImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverImage} alt="cover-preview" className="h-28 w-full rounded-lg object-cover" />
-            )}
           </div>
 
-          <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+          <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
             <p className="text-sm font-medium text-zinc-700">背景图（文章头图）</p>
             <input className="input" value={backgroundImage} onChange={(e) => setBackgroundImage(e.target.value)} placeholder="https://..." />
             <button type="button" className="tiptap-btn" onClick={() => backgroundRef.current?.click()}>
               上传背景图
             </button>
-            <input
-              ref={backgroundRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleBackgroundImage(e.target.files?.[0])}
-            />
-            {backgroundImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={backgroundImage} alt="background-preview" className="h-28 w-full rounded-lg object-cover" />
-            )}
+            <input ref={backgroundRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleBackgroundImage(e.target.files?.[0])} />
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900">
+          {backgroundImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={backgroundImage} alt="background-preview" className="h-40 w-full object-cover opacity-70 sm:h-52" />
+          ) : (
+            <div className="h-40 w-full bg-zinc-800 sm:h-52" />
+          )}
+          <div className="-mt-20 p-4 text-white sm:-mt-24 sm:p-6">
+            <p className="text-xs text-zinc-200">{todayLabel()}</p>
+            <p className="mt-1 text-xl font-semibold sm:text-3xl">{title || '这里显示文章头图预览'}</p>
           </div>
         </div>
       </div>
