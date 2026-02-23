@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { SETTING_KEYS } from '@/lib/site-settings';
 import { buildPostPath, slugify } from '@/lib/utils';
 
 function makeInternalPostSlug() {
@@ -151,11 +152,26 @@ export async function saveSiteConfig(formData: FormData) {
     )
   ).slice(0, 20);
 
-  await prisma.setting.set('site_title', siteTitle);
-  await prisma.setting.set('nav_categories', categoryNames.join(','));
+  await prisma.setting.set(SETTING_KEYS.siteTitle, siteTitle);
+  await prisma.setting.set(SETTING_KEYS.navCategories, categoryNames.join(','));
 
   revalidatePath('/');
   revalidatePath('/dashboard');
+}
+
+export async function saveUserSystemConfig(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可修改用户系统配置');
+
+  const registrationEnabled = formData.get('registrationEnabled') === 'on';
+  const anonymousCommentEnabled = formData.get('anonymousCommentEnabled') === 'on';
+
+  await prisma.setting.set(SETTING_KEYS.registrationEnabled, registrationEnabled ? '1' : '0');
+  await prisma.setting.set(SETTING_KEYS.anonymousCommentEnabled, anonymousCommentEnabled ? '1' : '0');
+
+  revalidatePath('/admin');
+  revalidatePath('/login');
+  revalidatePath('/register');
 }
 
 export async function saveProfile(formData: FormData) {

@@ -18,6 +18,7 @@ export default function LoginPage() {
       return setOauthError('该邮箱已存在密码账号，请先用密码登录后再绑定 Google。');
     if (code.includes('AccessDenied')) return setOauthError('Google 登录被拒绝，请确认该 Google 账号邮箱已验证。');
     if (code.includes('EmailNotVerified')) return setOauthError('Google 邮箱未验证，请先在 Google 完成邮箱验证。');
+    if (code.includes('RegistrationDisabled')) return setOauthError('当前站点已关闭注册，请联系管理员开通账号。');
     if (code.includes('D1_ERROR')) return setOauthError('服务器数据库暂时异常，请稍后重试。');
     setOauthError(`登录失败（${code}）`);
   }, []);

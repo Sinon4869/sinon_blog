@@ -8,6 +8,7 @@ import { toggleFavorite } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
 import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
+import { isAnonymousCommentEnabled } from '@/lib/site-settings';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 async function findPostById(id: string) {
@@ -89,9 +90,10 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
   const postUrl = `${base}${canonicalPath}`;
   const image = (post as any).cover_image || (post as any).background_image || undefined;
-  const [authorPostCount, globalTagCount] = await Promise.all([
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
-    prisma.tag.findMany({}).then((rows) => rows.length)
+    prisma.tag.findMany({}).then((rows) => rows.length),
+    isAnonymousCommentEnabled()
   ]);
 
   const articleJsonLd = {
@@ -189,6 +191,24 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
                   发表评论
                 </button>
               </form>
+            )}
+            {!session?.user && anonymousCommentEnabled && (
+              <form action="/api/comments" method="post" className="mt-4 space-y-3">
+                <input type="hidden" name="postId" value={post.id} />
+                <textarea name="content" className="input min-h-24" required placeholder="匿名评论（无需登录）" />
+                <button className="btn" type="submit">
+                  匿名发表评论
+                </button>
+              </form>
+            )}
+            {!session?.user && !anonymousCommentEnabled && (
+              <p className="mt-3 text-sm text-zinc-500">
+                请先
+                <a href="/login" className="mx-1 underline">
+                  登录
+                </a>
+                后发表评论。
+              </p>
             )}
             <div className="mt-4 space-y-3">
               {post.comments.length === 0 && <p className="text-sm text-zinc-500">还没有评论。</p>}

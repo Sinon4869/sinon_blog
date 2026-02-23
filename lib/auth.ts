@@ -5,11 +5,14 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
 import { prisma } from './prisma';
+import { SUPER_ADMIN_EMAIL, isRegistrationEnabled } from './site-settings';
 
-const adminEmails = (process.env.ADMIN_EMAILS || '')
+const adminEmails = [SUPER_ADMIN_EMAIL, ...(process.env.ADMIN_EMAILS || '')
   .split(',')
   .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+  .filter(Boolean)];
+
+const adminEmailSet = new Set(adminEmails);
 
 function maskEmail(email?: string | null) {
   if (!email) return 'unknown';
@@ -62,7 +65,7 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const role = adminEmails.includes(user.email.toLowerCase()) ? 'ADMIN' : user.role;
+          const role = adminEmailSet.has(user.email.toLowerCase()) ? 'ADMIN' : user.role;
           await prisma.user.update({
             where: { id: user.id },
             data: {
@@ -124,13 +127,18 @@ export const authOptions: NextAuthOptions = {
       } else {
         const userByEmail = await prisma.user.findUnique({ where: { email } });
         if (!userByEmail) {
+          const registrationEnabled = await isRegistrationEnabled();
+          if (!registrationEnabled) {
+            authAudit('google_reject', { reason: 'registration_disabled', email: maskEmail(email) });
+            return '/login?error=RegistrationDisabled';
+          }
           dbUser = await prisma.user.create({
             data: {
               email,
               name: user.name,
               image: user.image,
               emailVerified: new Date().toISOString(),
-              role: adminEmails.includes(email) ? 'ADMIN' : 'USER'
+              role: adminEmailSet.has(email) ? 'ADMIN' : 'USER'
             }
           });
         } else {
@@ -163,7 +171,7 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      const role = adminEmails.includes(email) ? 'ADMIN' : dbUser.role;
+      const role = adminEmailSet.has(email) ? 'ADMIN' : dbUser.role;
       dbUser = await prisma.user.update({
         where: { id: dbUser.id },
         data: {
@@ -185,7 +193,7 @@ export const authOptions: NextAuthOptions = {
         const dbUser = await prisma.user.findUnique({ where: { email: token.email.toLowerCase() } });
         if (dbUser) {
           token.id = dbUser.id;
-          token.role = dbUser.role || 'USER';
+          token.role = adminEmailSet.has(dbUser.email.toLowerCase()) ? 'ADMIN' : dbUser.role || 'USER';
           token.email = dbUser.email;
           token.name = dbUser.name;
           token.picture = dbUser.image;
