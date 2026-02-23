@@ -28,7 +28,7 @@ body {
 }
 
 .container-page {
-  @apply mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-8;
+  @apply mx-auto w-full max-w-[1320px] px-4 py-5 sm:px-6 sm:py-8;
 }
 
 .btn {
@@ -92,6 +92,19 @@ body {
   background: #151920;
   border-radius: 0.8rem;
   padding: 0.95rem;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .ProseMirror {

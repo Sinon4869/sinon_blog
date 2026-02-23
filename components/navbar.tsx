@@ -44,7 +44,7 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--line-soft)] bg-[rgba(247,246,242,0.88)] pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-[rgba(247,246,242,0.72)]">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-200 text-xs">木</span>
           <span>{siteTitle}</span>
