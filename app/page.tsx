@@ -13,6 +13,15 @@ type HomeSearchParams = {
   page?: string;
 };
 
+function buildPageHref(q: string, tag: string, page: number) {
+  const params = new URLSearchParams({
+    ...(q ? { q } : {}),
+    ...(tag ? { tag } : {}),
+    page: String(page)
+  });
+  return `/?${params.toString()}` as Route;
+}
+
 export default async function HomePage({ searchParams }: { searchParams: Promise<HomeSearchParams> }) {
   const sp = await searchParams;
   const q = (sp.q || '').trim();
@@ -64,7 +73,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       prisma.tag.findMany({
         orderBy: { name: 'asc' },
         select: { id: true, name: true, slug: true },
-        take: 30
+        take: 24
       })
     ]);
   } catch {
@@ -78,27 +87,33 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const rest = posts.slice(1);
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <section className="rounded-xl border border-zinc-200 bg-gradient-to-b from-zinc-50 to-white p-5 sm:p-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">文章广场</h1>
-        <p className="mt-1 text-sm text-zinc-600">最新内容、技术随笔与系统化实践。</p>
+    <div className="space-y-6 sm:space-y-8">
+      <section className="rounded-2xl border border-[var(--line-soft)] bg-white/60 p-5 sm:p-8">
+        <p className="text-xs tracking-[0.25em] text-zinc-500">KOMOREBI JOURNAL</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-wide text-zinc-800 sm:text-5xl">静かな場所で、ゆっくり読む。</h1>
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">
+          收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。
+        </p>
       </section>
 
       <form className="card grid gap-2 sm:grid-cols-[1fr_auto_auto]" action="/">
-        <input className="input" name="q" placeholder="搜索标题/摘要" defaultValue={q} />
+        <input className="input" name="q" placeholder="搜索标题或摘要..." defaultValue={q} />
         <input type="hidden" name="tag" value={tag} />
         <button className="btn" type="submit">
           搜索
         </button>
         {(q || tag) && (
-          <Link className="btn bg-zinc-200 text-zinc-800 hover:bg-zinc-300" href="/">
-            清除筛选
+          <Link className="rounded-md border border-[var(--line-strong)] px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100" href="/">
+            清空
           </Link>
         )}
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        <Link href={q ? `/?q=${encodeURIComponent(q)}` : '/'} className={`rounded px-2 py-1 text-xs ${!tag ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`}>
+      <section className="flex flex-wrap gap-2">
+        <Link
+          href={q ? `/?q=${encodeURIComponent(q)}` : '/'}
+          className={`rounded-full border px-3 py-1 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
+        >
           全部
         </Link>
         {tags.map((t) => {
@@ -107,87 +122,66 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <Link
               key={t.id}
               href={href as Route}
-              className={`rounded px-2 py-1 text-xs ${tag === t.slug ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`}
+              className={`rounded-full border px-3 py-1 text-xs tracking-wide ${tag === t.slug ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
             >
               #{t.name}
             </Link>
           );
         })}
-      </div>
+      </section>
 
       {featured && (
-        <article className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          {featured.cover_image && (
+        <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/65 sm:grid sm:grid-cols-[1.1fr_1.2fr]">
+          {featured.cover_image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={featured.cover_image} alt={featured.title} className="h-56 w-full object-cover sm:h-72" />
+            <img src={featured.cover_image} alt={featured.title} className="h-56 w-full object-cover sm:h-full" />
+          ) : (
+            <div className="h-56 bg-zinc-200 sm:h-full" />
           )}
-          <div className="space-y-2 p-4 sm:p-5">
-            <p className="text-xs text-zinc-500">置顶展示</p>
-            <Link className="text-2xl font-bold leading-snug hover:underline" href={`/posts/${featured.slug}`}>
+          <div className="space-y-4 p-5 sm:p-8">
+            <p className="text-xs tracking-[0.25em] text-zinc-500">FEATURED NOTE</p>
+            <Link href={`/posts/${featured.slug}`} className="block text-3xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-4xl">
               {featured.title}
             </Link>
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm leading-7 text-zinc-600">{featured.excerpt || '暂无摘要'}</p>
+            <p className="text-xs text-zinc-500">
               {(featured.author?.name || featured.author?.email) ?? '匿名'} · {formatDate(featured.publishedAt || featured.createdAt)} ·{' '}
               {featured.reading_time || 1} min read
             </p>
-            <p className="text-zinc-700">{featured.excerpt || '暂无摘要'}</p>
           </div>
         </article>
       )}
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">文章列表</h2>
         {rest.map((post) => (
-          <article key={post.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4 sm:grid sm:grid-cols-[360px_1fr_28px] sm:gap-6">
-            {post.cover_image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.cover_image} alt={post.title} className="h-52 w-full rounded-xl object-cover sm:h-[260px]" />
-            ) : (
-              <div className="h-52 rounded-xl bg-zinc-200 sm:h-[260px]" />
-            )}
-            <div className="space-y-3 py-2">
-              <p className="text-sm text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
-              <Link className="text-3xl font-bold leading-snug text-zinc-700 hover:underline sm:text-5xl" href={`/posts/${post.slug}`}>
-                {post.title}
-              </Link>
-              <p className="text-2xl text-zinc-600">{post.excerpt || '暂无摘要'}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {post.tags.map((t: any) => (
-                  <span key={t.tag.id} className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-700">
-                    #{t.tag.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="hidden items-center justify-center sm:flex">
-              <div className="space-y-3">
-                <div className="h-14 w-3 rounded-full bg-emerald-500" />
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-3 w-3 rounded-full bg-zinc-300" />
-                ))}
-              </div>
+          <article key={post.id} className="rounded-2xl border border-[var(--line-soft)] bg-white/55 p-4 sm:p-5">
+            <p className="text-xs tracking-[0.2em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
+            <Link href={`/posts/${post.slug}`} className="mt-2 block text-2xl font-semibold leading-snug text-zinc-800 hover:opacity-80 sm:text-3xl">
+              {post.title}
+            </Link>
+            <p className="mt-2 text-sm leading-7 text-zinc-600 sm:text-base">{post.excerpt || '暂无摘要'}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {post.tags.map((t: any) => (
+                <span key={t.tag.id} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-xs text-zinc-600">
+                  #{t.tag.name}
+                </span>
+              ))}
             </div>
           </article>
         ))}
       </section>
 
-      {posts.length === 0 && <p>没有符合筛选条件的文章。</p>}
+      {posts.length === 0 && <p className="text-sm text-zinc-600">没有符合筛选条件的文章。</p>}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-2">
-          <Link
-            className={`btn ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
-            href={`/?${new URLSearchParams({ ...(q ? { q } : {}), ...(tag ? { tag } : {}), page: String(page - 1) }).toString()}` as Route}
-          >
+          <Link className={`btn ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page - 1)}>
             上一页
           </Link>
           <span className="text-sm text-zinc-600">
             第 {page} / {totalPages} 页
           </span>
-          <Link
-            className={`btn ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`}
-            href={`/?${new URLSearchParams({ ...(q ? { q } : {}), ...(tag ? { tag } : {}), page: String(page + 1) }).toString()}` as Route}
-          >
+          <Link className={`btn ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page + 1)}>
             下一页
           </Link>
         </div>

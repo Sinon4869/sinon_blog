@@ -13,14 +13,14 @@ export async function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-30 border-b border-[var(--line-soft)] bg-[rgba(247,246,242,0.88)] pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-[rgba(247,246,242,0.72)]">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="text-base font-bold sm:text-lg">
+        <Link href="/" className="text-base font-semibold tracking-[0.12em] text-zinc-800 sm:text-lg">
           Komorebi
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-4 text-sm md:flex">
+        <nav className="hidden items-center gap-4 text-sm text-zinc-700 md:flex">
           <Link href="/">首页</Link>
           <Link href="/search">搜索</Link>
           <Link href="/write/new">写文章</Link>
@@ -48,10 +48,10 @@ export async function Navbar() {
 
         {/* Mobile menu */}
         <details className="group relative md:hidden">
-          <summary className="list-none rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+          <summary className="list-none rounded-md border border-[var(--line-soft)] bg-[#f8f7f3] px-3 py-2 text-sm text-zinc-700">
             菜单
           </summary>
-          <nav className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
+          <nav className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border border-[var(--line-soft)] bg-[#f8f7f3] p-2 shadow-lg">
             <Link href="/" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
               首页
             </Link>

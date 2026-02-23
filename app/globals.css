@@ -2,13 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-ink: #1f2322;
+  --bg-paper: #f2f0eb;
+  --bg-paper-soft: #f7f6f2;
+  --line-soft: #d8d5ce;
+  --line-strong: #b8b3a8;
+  --accent-moss: #6f7f6f;
+}
+
 html,
 body {
   overscroll-behavior-y: none;
 }
 
 body {
-  @apply bg-zinc-50 text-zinc-900 antialiased;
+  background:
+    radial-gradient(1200px 600px at 80% -20%, #e7e5dd 0%, rgba(231, 229, 221, 0) 70%),
+    linear-gradient(to bottom, var(--bg-paper-soft), var(--bg-paper));
+  color: var(--bg-ink);
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Times New Roman', serif;
+  @apply antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
@@ -18,15 +32,22 @@ body {
 }
 
 .btn {
-  @apply rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-ink);
+  color: #f8f8f6;
+  @apply rounded-md px-4 py-2 text-sm font-medium transition-colors hover:opacity-90;
 }
 
 .input {
-  @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base sm:text-sm focus:border-zinc-500 focus:outline-none;
+  border: 1px solid var(--line-strong);
+  background: #fcfbf8;
+  @apply w-full rounded-md px-3 py-2 text-base sm:text-sm focus:outline-none;
 }
 
 .card {
-  @apply rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5;
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.72);
+  @apply rounded-xl p-4 shadow-sm sm:p-5;
 }
 
 .ProseMirror {
@@ -72,9 +93,13 @@ body {
 }
 
 .tiptap-btn {
-  @apply rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 transition hover:bg-zinc-100;
+  border: 1px solid var(--line-soft);
+  background: #f8f7f3;
+  @apply rounded px-2 py-1 text-xs text-zinc-700 transition hover:bg-zinc-100;
 }
 
 .tiptap-btn.is-active {
-  @apply border-zinc-900 bg-zinc-900 text-white;
+  background: var(--bg-ink);
+  color: #fff;
+  border-color: var(--bg-ink);
 }
