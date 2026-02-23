@@ -35,58 +35,6 @@ function toDate(v: any): Date | null {
   return v ? new Date(v) : null;
 }
 
-function buildPostWhere(where: any = {}, alias = 'p') {
-  const clauses: string[] = [];
-  const vals: any[] = [];
-
-  if (where.published !== undefined) {
-    clauses.push(`${alias}.published = ?`);
-    vals.push(where.published ? 1 : 0);
-  }
-
-  if (where.authorId) {
-    clauses.push(`${alias}.authorId = ?`);
-    vals.push(where.authorId);
-  }
-
-  if (where.tags?.some?.tag?.slug) {
-    clauses.push(`EXISTS (SELECT 1 FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tagId WHERE pt2.postId = ${alias}.id AND t2.slug = ?)`);
-    vals.push(where.tags.some.tag.slug);
-  }
-
-  if (where.OR?.length) {
-    const orClauses: string[] = [];
-    for (const cond of where.OR) {
-      const titleQ = cond?.title?.contains;
-      if (typeof titleQ === 'string' && titleQ.trim()) {
-        orClauses.push(`${alias}.title LIKE ?`);
-        vals.push(`%${titleQ.trim()}%`);
-      }
-
-      const excerptQ = cond?.excerpt?.contains;
-      if (typeof excerptQ === 'string' && excerptQ.trim()) {
-        orClauses.push(`${alias}.excerpt LIKE ?`);
-        vals.push(`%${excerptQ.trim()}%`);
-      }
-
-      const tagNameQ = cond?.tags?.some?.tag?.name?.contains;
-      if (typeof tagNameQ === 'string' && tagNameQ.trim()) {
-        orClauses.push(
-          `EXISTS (SELECT 1 FROM post_tags pt3 JOIN tags t3 ON t3.id = pt3.tagId WHERE pt3.postId = ${alias}.id AND t3.name LIKE ?)`
-        );
-        vals.push(`%${tagNameQ.trim()}%`);
-      }
-    }
-
-    if (orClauses.length) clauses.push(`(${orClauses.join(' OR ')})`);
-  }
-
-  return {
-    whereSql: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
-    vals
-  };
-}
-
 export const prisma = {
   user: {
     async findUnique({ where }: any) {
@@ -212,7 +160,27 @@ export const prisma = {
       return post;
     },
     async findMany(args: any = {}) {
-      const { whereSql, vals } = buildPostWhere(args.where || {}, 'p');
+      const where = args.where || {};
+      const clauses = [] as string[];
+      const vals: any[] = [];
+      if (where.published !== undefined) {
+        clauses.push('p.published = ?');
+        vals.push(where.published ? 1 : 0);
+      }
+      if (where.authorId) {
+        clauses.push('p.authorId = ?');
+        vals.push(where.authorId);
+      }
+      if (where.OR?.length) {
+        clauses.push('(p.title LIKE ? OR p.excerpt LIKE ?)');
+        const q = `%${where.OR[0]?.title?.contains || ''}%`;
+        vals.push(q, q);
+      }
+      if (where.tags?.some?.tag?.slug) {
+        clauses.push('EXISTS (SELECT 1 FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tagId WHERE pt2.postId = p.id AND t2.slug = ?)');
+        vals.push(where.tags.some.tag.slug);
+      }
+      const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
       const limit = args.take ? ` LIMIT ${Number(args.take)}` : '';
       const offset = args.skip ? ` OFFSET ${Number(args.skip)}` : '';
       const rows0 = await many<any>(`SELECT p.* FROM posts p ${whereSql} ORDER BY p.publishedAt DESC, p.createdAt DESC${limit}${offset}`, ...vals);
@@ -275,8 +243,13 @@ export const prisma = {
       return { id: where.id };
     },
     async count({ where }: any = {}) {
-      const { whereSql, vals } = buildPostWhere(where || {}, 'p');
-      const sql = `SELECT COUNT(*) as c FROM posts p ${whereSql}`;
+      const clauses: string[] = [];
+      const vals: any[] = [];
+      if (where?.published !== undefined) {
+        clauses.push('published = ?');
+        vals.push(where.published ? 1 : 0);
+      }
+      const sql = `SELECT COUNT(*) as c FROM posts ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}`;
       const r = await one<{ c: number }>(sql, ...vals);
       return r?.c ?? 0;
     }
