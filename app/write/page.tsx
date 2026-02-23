@@ -111,7 +111,9 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
               excerpt: post.excerpt || '',
               content: post.content,
               published: post.published,
-              tags: post.tags.map((t: { tag: { name: string } }) => t.tag.name).join(',')
+              tags: post.tags.map((t: { tag: { name: string } }) => t.tag.name).join(','),
+              coverImage: (post as { cover_image?: string | null }).cover_image || '',
+              backgroundImage: (post as { background_image?: string | null }).background_image || ''
             }
           : tpl
             ? {

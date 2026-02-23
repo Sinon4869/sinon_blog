@@ -193,10 +193,13 @@ export const prisma = {
             slug: p.slug,
             title: p.title,
             excerpt: p.excerpt,
+            cover_image: p.cover_image,
+            background_image: p.background_image,
+            reading_time: p.reading_time,
             publishedAt: toDate(p.publishedAt),
             createdAt: toDate(p.createdAt),
             updatedAt: toDate(p.updatedAt),
-            author: (await one('SELECT name, email FROM users WHERE id = ?', p.authorId)) || { name: null, email: '' },
+            author: (await one('SELECT id, name, email FROM users WHERE id = ?', p.authorId)) || { id: '', name: null, email: '' },
             tags: (
               await many(
                 `SELECT t.id, t.name, t.slug FROM post_tags pt JOIN tags t ON t.id = pt.tagId WHERE pt.postId = ?`,
@@ -211,7 +214,7 @@ export const prisma = {
     async create({ data }: any) {
       const id = cuidLike();
       await run(
-        'INSERT INTO posts (id, title, slug, excerpt, content, published, publishedAt, authorId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        'INSERT INTO posts (id, title, slug, excerpt, content, published, publishedAt, reading_time, seo_title, seo_description, canonical_url, cover_image, background_image, authorId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
         id,
         data.title,
         data.slug,
@@ -219,6 +222,12 @@ export const prisma = {
         data.content,
         data.published ? 1 : 0,
         data.publishedAt ? new Date(data.publishedAt).toISOString() : null,
+        data.reading_time ?? null,
+        data.seo_title ?? null,
+        data.seo_description ?? null,
+        data.canonical_url ?? null,
+        data.cover_image ?? null,
+        data.background_image ?? null,
         data.authorId
       );
       return (await one('SELECT * FROM posts WHERE id = ?', id)) as any;

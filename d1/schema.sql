@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS posts (
   seo_title TEXT,
   seo_description TEXT,
   canonical_url TEXT,
+  cover_image TEXT,
+  background_image TEXT,
   authorId TEXT NOT NULL,
   createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

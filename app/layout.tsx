@@ -4,8 +4,19 @@ import './globals.css';
 import { Navbar } from '@/components/navbar';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live'),
   title: 'Komorebi',
-  description: 'Next.js 14 现代博客系统'
+  description: 'Next.js 现代博客系统',
+  openGraph: {
+    title: 'Komorebi',
+    description: 'Next.js 现代博客系统',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Komorebi',
+    description: 'Next.js 现代博客系统'
+  }
 };
 
 export const viewport: Viewport = {

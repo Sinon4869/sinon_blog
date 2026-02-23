@@ -29,6 +29,8 @@ export async function savePost(formData: FormData) {
   const content = formData.get('content')?.toString() ?? '';
   const excerpt = formData.get('excerpt')?.toString() ?? '';
   const tagLine = formData.get('tags')?.toString() ?? '';
+  const coverImage = formData.get('coverImage')?.toString().trim() ?? '';
+  const backgroundImage = formData.get('backgroundImage')?.toString().trim() ?? '';
   const published = formData.get('published') === 'on';
 
   if (!title || !content) throw new Error('标题与内容不能为空');
@@ -41,6 +43,9 @@ export async function savePost(formData: FormData) {
     .map((i) => i.trim())
     .filter(Boolean);
 
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const readingTime = Math.max(1, Math.round(words / 220));
+
   const post = id
     ? await prisma.post.update({
         where: { id },
@@ -49,7 +54,12 @@ export async function savePost(formData: FormData) {
           excerpt,
           content,
           published,
-          publishedAt: published ? new Date() : null
+          publishedAt: published ? new Date() : null,
+          reading_time: readingTime,
+          seo_title: title.slice(0, 60),
+          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
+          cover_image: coverImage || null,
+          background_image: backgroundImage || null
         }
       })
     : await prisma.post.create({
@@ -60,6 +70,11 @@ export async function savePost(formData: FormData) {
           content,
           published,
           publishedAt: published ? new Date() : null,
+          reading_time: readingTime,
+          seo_title: title.slice(0, 60),
+          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
+          cover_image: coverImage || null,
+          background_image: backgroundImage || null,
           authorId: user.id
         }
       });

@@ -54,8 +54,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           excerpt: true,
           publishedAt: true,
           createdAt: true,
-          author: { select: { name: true, email: true } },
-          tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+          author: { select: { id: true, name: true, email: true } },
+          tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+          cover_image: true,
+          reading_time: true
         }
       }),
       prisma.post.count({ where }),
@@ -72,10 +74,15 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const featured = posts[0];
+  const rest = posts.slice(1);
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <h1 className="text-2xl font-bold sm:text-3xl">最新文章</h1>
+    <div className="space-y-5 sm:space-y-6">
+      <section className="rounded-xl border border-zinc-200 bg-gradient-to-b from-zinc-50 to-white p-5 sm:p-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">文章广场</h1>
+        <p className="mt-1 text-sm text-zinc-600">最新内容、技术随笔与系统化实践。</p>
+      </section>
 
       <form className="card grid gap-2 sm:grid-cols-[1fr_auto_auto]" action="/">
         <input className="input" name="q" placeholder="搜索标题/摘要" defaultValue={q} />
@@ -108,24 +115,55 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         })}
       </div>
 
-      {posts.map((post) => (
-        <article className="card" key={post.id}>
-          <Link className="text-lg font-semibold leading-snug hover:underline sm:text-xl" href={`/posts/${post.slug}`}>
-            {post.title}
-          </Link>
-          <p className="mt-1 text-sm text-zinc-600">
-            {post.author.name || post.author.email} · {formatDate(post.publishedAt || post.createdAt)}
-          </p>
-          <p className="mt-2 text-zinc-700">{post.excerpt || '暂无摘要'}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {post.tags.map((t: any) => (
-              <span key={t.tag.id} className="rounded bg-zinc-100 px-2 py-1 text-xs">
-                #{t.tag.name}
-              </span>
-            ))}
+      {featured && (
+        <article className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          {featured.cover_image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={featured.cover_image} alt={featured.title} className="h-56 w-full object-cover sm:h-72" />
+          )}
+          <div className="space-y-2 p-4 sm:p-5">
+            <p className="text-xs text-zinc-500">置顶展示</p>
+            <Link className="text-2xl font-bold leading-snug hover:underline" href={`/posts/${featured.slug}`}>
+              {featured.title}
+            </Link>
+            <p className="text-sm text-zinc-600">
+              {(featured.author?.name || featured.author?.email) ?? '匿名'} · {formatDate(featured.publishedAt || featured.createdAt)} ·{' '}
+              {featured.reading_time || 1} min read
+            </p>
+            <p className="text-zinc-700">{featured.excerpt || '暂无摘要'}</p>
           </div>
         </article>
-      ))}
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">文章列表</h2>
+        {rest.map((post) => (
+          <article key={post.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white sm:grid sm:grid-cols-[1.4fr_2fr]">
+            {post.cover_image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={post.cover_image} alt={post.title} className="h-44 w-full object-cover sm:h-full" />
+            ) : (
+              <div className="h-44 bg-zinc-100 sm:h-full" />
+            )}
+            <div className="space-y-2 p-4">
+              <Link className="text-xl font-semibold leading-snug hover:underline" href={`/posts/${post.slug}`}>
+                {post.title}
+              </Link>
+              <p className="text-xs text-zinc-500">
+                {(post.author?.name || post.author?.email) ?? '匿名'} · {formatDate(post.publishedAt || post.createdAt)} · {post.reading_time || 1} min read
+              </p>
+              <p className="text-zinc-700">{post.excerpt || '暂无摘要'}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {post.tags.map((t: any) => (
+                  <span key={t.tag.id} className="rounded bg-zinc-100 px-2 py-1 text-xs">
+                    #{t.tag.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
 
       {posts.length === 0 && <p>没有符合筛选条件的文章。</p>}
 
