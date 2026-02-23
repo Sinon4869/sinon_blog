@@ -55,3 +55,39 @@ npm run preview
 ```bash
 npm run deploy
 ```
+
+## 7) CI Secrets 规范（P0）
+
+GitHub Actions 需要以下 Secrets：
+
+- `CF_API_TOKEN`
+- `CF_ACCOUNT_ID`
+
+要求：
+- `CF_API_TOKEN` 至少具备 Workers 部署与 D1 执行权限
+- `CF_ACCOUNT_ID` 必须与 token 所属账号一致
+- 命名统一使用上面两项，不再混用旧变量名
+
+排查命令（本地）：
+
+```bash
+# 查看账号下可见 D1
+wrangler d1 list
+```
+
+## 8) 回滚说明（P0）
+
+当线上发布异常时，按以下顺序回滚：
+
+1. **先回滚 Worker 版本**（Cloudflare Dashboard 或 wrangler 历史版本回退）
+2. **确认数据库 schema 状态**
+   - 检查 `users.disabled` 等关键列是否存在
+   - 检查 `schema_migrations` 记录是否与实际一致
+3. **如需数据库回滚，执行预置反向 SQL**
+   - 仅在确认影响范围后执行
+   - 先在 dev 演练，再在 prod 操作
+
+建议：
+- 每次新增 migration 同步补充对应的 rollback SQL 脚本
+- 变更后运行 smoke test：`/`、`/login`、`/api/auth/signin/google`
+
