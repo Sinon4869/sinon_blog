@@ -4,11 +4,11 @@ import type { Route } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
+import { toggleFavorite } from '@/app/actions';
+import { authOptions } from '@/lib/auth';
 import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
-import { authOptions } from '@/lib/auth';
-import { toggleFavorite } from '@/app/actions';
 
 function slugCandidates(raw: string) {
   const set = new Set<string>();
@@ -69,6 +69,7 @@ export async function generateMetadata({ params }: { params: Promise<{ year: str
 export default async function PostDetail({ params }: { params: Promise<{ year: string; month: string; day: string; slug: string }> }) {
   const { year, month, day, slug } = await params;
   const session = await getServerSession(authOptions);
+
   let post = null as any;
   for (const candidate of slugCandidates(slug)) {
     post = await prisma.post.findUnique({

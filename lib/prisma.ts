@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getCloudflareContext } from '@opennextjs/cloudflare';
-
 type Row = Record<string, any>;
 
 function cuidLike() {
@@ -8,10 +6,21 @@ function cuidLike() {
 }
 
 async function getDB(): Promise<any> {
+  let getCloudflareContextFn: ((opts: { async: boolean }) => Promise<any>) | null = null;
   try {
-    const ctx = await getCloudflareContext({ async: true });
-    const db = (ctx?.env as any)?.DB;
-    return db ?? null;
+    const mod = (await import('@opennextjs/cloudflare')) as { getCloudflareContext?: (opts: { async: boolean }) => Promise<any> };
+    if (typeof mod.getCloudflareContext === 'function') getCloudflareContextFn = mod.getCloudflareContext;
+  } catch {}
+  if (!getCloudflareContextFn) {
+    try {
+      const fallback = (globalThis as any).getCloudflareContext;
+      if (typeof fallback === 'function') getCloudflareContextFn = fallback;
+    } catch {}
+  }
+  if (!getCloudflareContextFn) return null;
+  try {
+    const ctx = await getCloudflareContextFn({ async: true });
+    return (ctx?.env as any)?.DB ?? null;
   } catch {
     return null;
   }
