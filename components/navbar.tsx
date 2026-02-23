@@ -6,6 +6,27 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 
+function parseConfiguredCategories(value: string) {
+  const raw = value.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 20);
+    }
+  } catch {
+    // fallback for legacy values
+  }
+  return raw
+    .split(/[\n,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 export async function Navbar() {
   let session: any = null;
   let tags: Array<{ id: string; name: string; slug: string }> = [];
@@ -27,10 +48,7 @@ export async function Navbar() {
       name: String(t.name || ''),
       slug: String(t.slug || '')
     }));
-    const configuredNames = String(categoriesSetting?.value || '')
-      .split(/[\n,，]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const configuredNames = parseConfiguredCategories(String(categoriesSetting?.value || ''));
     tags =
       configuredNames.length > 0
         ? configuredNames.map((name, i) => ({ id: `cfg-${i}`, name, slug: slugify(name) || name }))

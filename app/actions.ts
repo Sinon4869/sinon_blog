@@ -142,18 +142,25 @@ export async function saveSiteConfig(formData: FormData) {
 
   const siteTitleRaw = formData.get('siteTitle')?.toString().trim() || 'Komorebi';
   const siteTitle = siteTitleRaw.slice(0, 40) || 'Komorebi';
-  const categoriesRaw = formData.get('categories')?.toString() || '';
-  const categoryNames = Array.from(
-    new Set(
-      categoriesRaw
-        .split(/[\n,，]/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
-  ).slice(0, 20);
+  const categoriesJson = formData.get('categoriesJson')?.toString() || '[]';
+  let categoryNames: string[] = [];
+  try {
+    const parsed = JSON.parse(categoriesJson);
+    if (Array.isArray(parsed)) {
+      categoryNames = Array.from(
+        new Set(
+          parsed
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+        )
+      ).slice(0, 20);
+    }
+  } catch {
+    throw new Error('分类数据格式错误，请重新添加分类');
+  }
 
   await prisma.setting.set(SETTING_KEYS.siteTitle, siteTitle);
-  await prisma.setting.set(SETTING_KEYS.navCategories, categoryNames.join(','));
+  await prisma.setting.set(SETTING_KEYS.navCategories, JSON.stringify(categoryNames));
 
   revalidatePath('/');
   revalidatePath('/dashboard');

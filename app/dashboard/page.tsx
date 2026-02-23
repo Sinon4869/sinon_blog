@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
+import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
@@ -38,6 +39,27 @@ function buildHref(q: string, status: string, page: number) {
     page: String(page)
   });
   return `/dashboard?${sp.toString()}` as Route;
+}
+
+function parseConfiguredCategories(value: string) {
+  const raw = value.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 20);
+    }
+  } catch {
+    // fallback for legacy values
+  }
+  return raw
+    .split(/[\n,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 20);
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardSearchParams> }) {
@@ -79,6 +101,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const totalPages = Math.max(1, Math.ceil(allMatched.length / PAGE_SIZE));
   const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
   const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
+  const navCategoryList = parseConfiguredCategories(navCategories);
 
   return (
     <div className="space-y-6">
@@ -138,15 +161,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
               <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm text-zinc-600">文章分类（逗号或换行分隔）</label>
-              <textarea
-                className="input min-h-24"
-                name="categories"
-                defaultValue={navCategories}
-                placeholder={'复盘, 实践, 总结, 教程'}
-              />
-            </div>
+            <NavCategoriesEditor initialCategories={navCategoryList} />
             <div>
               <ConfirmSubmitButton confirmText="确认保存站点配置？修改后导航将即时更新。" className="btn">
                 保存配置
