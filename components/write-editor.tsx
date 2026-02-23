@@ -255,25 +255,43 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       )}
 
       <div className="card space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            标题
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold tracking-wide text-zinc-500">TipTap 富文本编辑器</p>
+          <div className="flex items-center gap-2 text-xs">
+            <button type="button" className="rounded border px-2 py-1" onClick={() => editor.chain().focus().undo().run()}>
+              撤销
+            </button>
+            <button type="button" className="rounded border px-2 py-1" onClick={() => editor.chain().focus().redo().run()}>
+              重做
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2">
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('heading', { level: 1 }) ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+            H1
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBold().run()}>
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('heading', { level: 2 }) ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+            H2
+          </button>
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('bold') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBold().run()}>
             加粗
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            列表
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('bulletList') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+            无序列表
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('orderedList') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            有序列表
+          </button>
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('codeBlock') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
             代码块
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          <button type="button" className={`rounded border px-2 py-1 text-xs ${editor.isActive('blockquote') ? 'bg-zinc-900 text-white' : 'bg-white'}`} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
             引用
           </button>
           <button
             type="button"
-            className="rounded border px-2 py-1 text-xs"
+            className={`rounded border px-2 py-1 text-xs ${editor.isActive('link') ? 'bg-zinc-900 text-white' : 'bg-white'}`}
             onClick={() => {
               const url = window.prompt('输入链接 URL');
               if (!url) return;
@@ -282,13 +300,13 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
           >
             链接
           </button>
-          <button type="button" className="rounded border px-2 py-1 text-xs" onClick={() => fileRef.current?.click()}>
+          <button type="button" className="rounded border bg-white px-2 py-1 text-xs" onClick={() => fileRef.current?.click()}>
             上传正文图片
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleInlineImage(e.target.files?.[0])} />
         </div>
 
-        <div className="input min-h-[50vh] md:min-h-[65vh]">
+        <div className="min-h-[50vh] rounded-md border border-zinc-300 bg-white p-3 md:min-h-[65vh]">
           <EditorContent editor={editor} />
         </div>
 

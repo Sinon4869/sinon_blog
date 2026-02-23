@@ -28,3 +28,37 @@ body {
 .card {
   @apply rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5;
 }
+
+.ProseMirror {
+  min-height: 42vh;
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: '开始输入内容…';
+  color: #a1a1aa;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1 {
+  @apply mb-3 text-3xl font-bold;
+}
+
+.ProseMirror h2 {
+  @apply mb-2 text-2xl font-semibold;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  @apply my-2 pl-6;
+}
+
+.ProseMirror blockquote {
+  @apply my-3 border-l-4 border-zinc-300 pl-3 text-zinc-600;
+}
+
+.ProseMirror pre {
+  @apply my-3 overflow-x-auto rounded bg-zinc-900 p-3 text-sm text-zinc-100;
+}
