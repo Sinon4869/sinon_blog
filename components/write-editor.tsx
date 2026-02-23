@@ -15,6 +15,8 @@ type WriteEditorProps = {
     content?: string;
     published?: boolean;
     tags?: string;
+    coverImage?: string;
+    backgroundImage?: string;
   };
 };
 
@@ -37,10 +39,14 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
   const [tags, setTags] = useState(post?.tags || '');
+  const [coverImage, setCoverImage] = useState(post?.coverImage || '');
+  const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [published, setPublished] = useState(!!post?.published);
   const [uploading, setUploading] = useState(false);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const coverRef = useRef<HTMLInputElement | null>(null);
+  const backgroundRef = useRef<HTMLInputElement | null>(null);
 
   const editor = useEditor({
     extensions: [StarterKit, Image, Link.configure({ openOnClick: false })],
@@ -69,6 +75,32 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
+  async function handleCoverImage(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadToR2(file);
+      setCoverImage(url);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleBackgroundImage(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadToR2(file);
+      setBackgroundImage(url);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (!editor) return null;
 
   return (
@@ -81,11 +113,47 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     >
       <input type="hidden" name="id" value={post?.id || ''} />
       <input type="hidden" name="content" value={content} />
+      <input type="hidden" name="coverImage" value={coverImage} />
+      <input type="hidden" name="backgroundImage" value={backgroundImage} />
 
       <div className="card space-y-3">
         <input className="input text-lg font-semibold" name="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="文章标题" required />
         <input className="input" name="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="一句话摘要（可选）" />
         <input className="input" name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="标签，逗号分隔（可选）" />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <p className="text-sm font-medium text-zinc-700">封面图（列表卡片）</p>
+            <input className="input" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
+            <button type="button" className="tiptap-btn" onClick={() => coverRef.current?.click()}>
+              上传封面图
+            </button>
+            <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleCoverImage(e.target.files?.[0])} />
+            {coverImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverImage} alt="cover-preview" className="h-28 w-full rounded-lg object-cover" />
+            )}
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <p className="text-sm font-medium text-zinc-700">背景图（文章头图）</p>
+            <input className="input" value={backgroundImage} onChange={(e) => setBackgroundImage(e.target.value)} placeholder="https://..." />
+            <button type="button" className="tiptap-btn" onClick={() => backgroundRef.current?.click()}>
+              上传背景图
+            </button>
+            <input
+              ref={backgroundRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleBackgroundImage(e.target.files?.[0])}
+            />
+            {backgroundImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={backgroundImage} alt="background-preview" className="h-28 w-full rounded-lg object-cover" />
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
