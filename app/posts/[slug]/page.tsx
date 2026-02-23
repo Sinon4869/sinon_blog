@@ -65,6 +65,10 @@ export default async function PostDetail({ params }: { params: Promise<{ slug: s
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
   const postUrl = `${base}/posts/${post.slug}`;
   const image = (post as any).cover_image || (post as any).background_image || undefined;
+  const [authorPostCount, globalTagCount] = await Promise.all([
+    prisma.post.count({ where: { authorId: post.authorId, published: true } }),
+    prisma.tag.findMany({}).then((rows) => rows.length)
+  ]);
 
   const articleJsonLd = {
     '@context': 'https://schema.org',
@@ -91,56 +95,101 @@ export default async function PostDetail({ params }: { params: Promise<{ slug: s
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
-      {(post as any).background_image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={(post as any).background_image} alt={post.title} className="h-56 w-full rounded-xl object-cover" />
-      )}
-
-      <h1 className="text-3xl font-bold">{post.title}</h1>
-      <p className="text-sm text-zinc-600">
-        {post.author.name || post.author.email} · {formatDate(post.publishedAt || post.createdAt)} · {(post as any).reading_time || 1} min read
-      </p>
-      <div className="flex gap-2">
-        {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
-          <span key={t.tagId} className="rounded bg-zinc-100 px-2 py-1 text-xs">
-            #{t.tag.name}
-          </span>
-        ))}
-      </div>
-      <MdxContent source={post.content} />
-
-      {session?.user && (
-        <form action={toggleFavorite}>
-          <input type="hidden" name="postId" value={post.id} />
-          <button className="btn" type="submit">
-            {favorited ? '取消收藏' : '收藏文章'}
-          </button>
-        </form>
-      )}
-
-      <section className="space-y-2">
-        <h2 className="text-xl font-semibold">评论</h2>
-        {session?.user && (
-          <form action="/api/comments" method="post" className="space-y-2">
-            <input type="hidden" name="postId" value={post.id} />
-            <textarea name="content" className="input min-h-24" required placeholder="写下你的评论" />
-            <button className="btn" type="submit">
-              发表评论
-            </button>
-          </form>
+      <section className="relative -mx-4 overflow-hidden rounded-none sm:-mx-6 lg:-mx-8">
+        {(post as any).background_image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={(post as any).background_image} alt={post.title} className="h-[44vh] min-h-[300px] w-full object-cover sm:h-[52vh]" />
+        ) : (
+          <div className="h-[44vh] min-h-[300px] w-full bg-zinc-800 sm:h-[52vh]" />
         )}
-        <div className="space-y-2">
-          {post.comments.map((c: any) => (
-            <div className="card" key={c.id}>
-              <p className="text-sm text-zinc-500">{c.user.name || c.user.email}</p>
-              <p>{c.content}</p>
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
+          <div className="mx-auto max-w-5xl space-y-3">
+            <p className="text-sm text-zinc-200">{formatDate(post.publishedAt || post.createdAt)}</p>
+            <h1 className="text-3xl font-bold sm:text-5xl">{post.title}</h1>
+            <p className="text-sm text-zinc-200">
+              {post.author.name || post.author.email} · {(post as any).reading_time || 1} min read · {post.comments.length} 条评论
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
+                <span key={t.tagId} className="rounded bg-white/15 px-2 py-1 text-xs">
+                  #{t.tag.name}
+                </span>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[2.2fr_1fr]">
+        <article className="card space-y-4">
+          <MdxContent source={post.content} />
+
+          {session?.user && (
+            <form action={toggleFavorite}>
+              <input type="hidden" name="postId" value={post.id} />
+              <button className="btn" type="submit">
+                {favorited ? '取消收藏' : '收藏文章'}
+              </button>
+            </form>
+          )}
+
+          <section className="space-y-2">
+            <h2 className="text-xl font-semibold">评论</h2>
+            {session?.user && (
+              <form action="/api/comments" method="post" className="space-y-2">
+                <input type="hidden" name="postId" value={post.id} />
+                <textarea name="content" className="input min-h-24" required placeholder="写下你的评论" />
+                <button className="btn" type="submit">
+                  发表评论
+                </button>
+              </form>
+            )}
+            <div className="space-y-2">
+              {post.comments.map((c: any) => (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" key={c.id}>
+                  <p className="text-sm text-zinc-500">{c.user.name || c.user.email}</p>
+                  <p>{c.content}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </article>
+
+        <aside className="space-y-4">
+          <div className="card text-center">
+            <div className="mx-auto h-20 w-20 overflow-hidden rounded-full border border-zinc-200">
+              {post.author.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.author.image} alt={post.author.name || post.author.email} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-zinc-100 text-2xl text-zinc-600">
+                  {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <h3 className="mt-3 text-2xl font-semibold">{post.author.name || '匿名作者'}</h3>
+            <p className="mt-1 text-sm text-zinc-500">{post.author.bio || '热爱写作，持续输出。'}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <p className="text-zinc-500">Articles</p>
+                <p className="text-2xl font-semibold">{authorPostCount}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Tags</p>
+                <p className="text-2xl font-semibold">{globalTagCount}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Comments</p>
+                <p className="text-2xl font-semibold">{post.comments.length}</p>
+              </div>
+            </div>
+          </div>
+        </aside>
       </section>
     </div>
   );

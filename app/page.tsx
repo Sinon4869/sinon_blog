@@ -138,26 +138,32 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">文章列表</h2>
         {rest.map((post) => (
-          <article key={post.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white sm:grid sm:grid-cols-[1.4fr_2fr]">
+          <article key={post.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4 sm:grid sm:grid-cols-[360px_1fr_28px] sm:gap-6">
             {post.cover_image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.cover_image} alt={post.title} className="h-44 w-full object-cover sm:h-full" />
+              <img src={post.cover_image} alt={post.title} className="h-52 w-full rounded-xl object-cover sm:h-[260px]" />
             ) : (
-              <div className="h-44 bg-zinc-100 sm:h-full" />
+              <div className="h-52 rounded-xl bg-zinc-200 sm:h-[260px]" />
             )}
-            <div className="space-y-2 p-4">
-              <Link className="text-xl font-semibold leading-snug hover:underline" href={`/posts/${post.slug}`}>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
+              <Link className="text-3xl font-bold leading-snug text-zinc-700 hover:underline sm:text-5xl" href={`/posts/${post.slug}`}>
                 {post.title}
               </Link>
-              <p className="text-xs text-zinc-500">
-                {(post.author?.name || post.author?.email) ?? '匿名'} · {formatDate(post.publishedAt || post.createdAt)} · {post.reading_time || 1} min read
-              </p>
-              <p className="text-zinc-700">{post.excerpt || '暂无摘要'}</p>
+              <p className="text-2xl text-zinc-600">{post.excerpt || '暂无摘要'}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {post.tags.map((t: any) => (
-                  <span key={t.tag.id} className="rounded bg-zinc-100 px-2 py-1 text-xs">
+                  <span key={t.tag.id} className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-700">
                     #{t.tag.name}
                   </span>
+                ))}
+              </div>
+            </div>
+            <div className="hidden items-center justify-center sm:flex">
+              <div className="space-y-3">
+                <div className="h-14 w-3 rounded-full bg-emerald-500" />
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-3 w-3 rounded-full bg-zinc-300" />
                 ))}
               </div>
             </div>
