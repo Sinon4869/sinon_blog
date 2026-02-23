@@ -34,6 +34,14 @@ body {
   outline: none;
 }
 
+.simple-editor-content {
+  margin: 0 auto;
+  max-width: 760px;
+  min-height: 52vh;
+  line-height: 1.7;
+  font-size: 18px;
+}
+
 .ProseMirror p.is-editor-empty:first-child::before {
   content: '开始输入内容…';
   color: #a1a1aa;
