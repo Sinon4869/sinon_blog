@@ -153,6 +153,20 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     setSnapshots(loadSnapshots());
   }
 
+  function openFullPreview() {
+    const payload = {
+      id: post?.id,
+      title,
+      excerpt,
+      content: editor?.getHTML() || '',
+      tags,
+      coverImage,
+      backgroundImage
+    };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    window.location.href = `/write/preview?draft=${encodeURIComponent(encoded)}`;
+  }
+
   async function handleInlineImage(file: File | undefined) {
     if (!file || !editor) return;
     setUploading(true);
@@ -375,9 +389,14 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       <div className="card space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">发布前预览</h3>
-          <button type="button" className="rounded border px-3 py-1 text-sm" onClick={() => setPublishPreview((v) => !v)}>
-            {publishPreview ? '收起预览' : '展开预览'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="rounded border px-3 py-1 text-sm" onClick={() => setPublishPreview((v) => !v)}>
+              {publishPreview ? '收起预览' : '展开预览'}
+            </button>
+            <button type="button" className="rounded border px-3 py-1 text-sm" onClick={openFullPreview}>
+              独立预览页
+            </button>
+          </div>
         </div>
         {publishPreview && (
           <div className="space-y-3 rounded border border-zinc-200 p-3">
