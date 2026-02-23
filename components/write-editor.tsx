@@ -36,13 +36,13 @@ type DraftPayload = {
   ts: number;
 };
 
-async function toDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+async function uploadToR2(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.set('file', file);
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+  if (!res.ok || !data.url) throw new Error(data.error || '上传失败');
+  return data.url;
 }
 
 function estimateReadingTime(text: string) {
@@ -157,8 +157,10 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     if (!file || !editor) return;
     setUploading(true);
     try {
-      const url = await toDataUrl(file);
+      const url = await uploadToR2(file);
       editor.chain().focus().setImage({ src: url, alt: file.name }).run();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '上传失败');
     } finally {
       setUploading(false);
     }
@@ -168,7 +170,9 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     if (!file) return;
     setUploading(true);
     try {
-      setCoverImage(await toDataUrl(file));
+      setCoverImage(await uploadToR2(file));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '上传失败');
     } finally {
       setUploading(false);
     }
@@ -178,7 +182,9 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     if (!file) return;
     setUploading(true);
     try {
-      setBackgroundImage(await toDataUrl(file));
+      setBackgroundImage(await uploadToR2(file));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '上传失败');
     } finally {
       setUploading(false);
     }
