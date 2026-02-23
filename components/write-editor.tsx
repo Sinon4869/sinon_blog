@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -106,7 +106,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [uploading, setUploading] = useState(false);
-  const [content, setContent] = useState(post?.content || '');
+  const [stats, setStats] = useState(() => estimateReadingTime(''));
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkValue, setLinkValue] = useState('');
@@ -135,21 +135,23 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       TextAlign.configure({ types: ['heading', 'paragraph'] })
     ],
     content: normalizeEditorContent(post?.content),
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'simple-editor-content'
       }
-    },
-    onUpdate({ editor: e }) {
-      setContent(e.getHTML());
-    },
-    onCreate({ editor: e }) {
-      setContent(e.getHTML());
     }
   });
 
-  const plainText = editor?.getText() || '';
-  const stat = useMemo(() => estimateReadingTime(plainText), [plainText]);
+  useEffect(() => {
+    if (!editor) return;
+    const syncStats = () => setStats(estimateReadingTime(editor.getText() || ''));
+    syncStats();
+    editor.on('blur', syncStats);
+    return () => {
+      editor.off('blur', syncStats);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -277,7 +279,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     <>
     <form ref={formRef} className="space-y-4 pb-24 md:pb-0">
       <input type="hidden" name="id" value={post?.id || ''} />
-      <input type="hidden" name="content" value={content} />
+      <input type="hidden" name="content" value="" />
       <input type="hidden" name="coverImage" value={coverImage} />
       <input type="hidden" name="backgroundImage" value={backgroundImage} />
 
@@ -336,8 +338,8 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="sticky top-[76px] z-20 space-y-2 border-b border-zinc-200 bg-zinc-50/95 px-3 py-2 backdrop-blur">
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="z-20 space-y-2 border-b border-zinc-200 bg-zinc-50/95 px-3 py-2 backdrop-blur md:sticky md:top-[78px]">
           <div className="flex flex-wrap items-center gap-1">
             <ToolButton label="↶" onClick={() => editor.chain().focus().undo().run()} />
             <ToolButton label="↷" onClick={() => editor.chain().focus().redo().run()} />
@@ -428,7 +430,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
         <span>
-          字数：{stat.words} · 预计阅读 {stat.minutes} 分钟
+          字数：{stats.words} · 预计阅读 {stats.minutes} 分钟
         </span>
         <span>{uploading ? '图片上传中...' : ''}</span>
       </div>
