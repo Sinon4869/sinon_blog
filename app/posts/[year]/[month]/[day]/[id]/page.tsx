@@ -119,53 +119,70 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
-      <section className="relative -mx-4 overflow-hidden rounded-none sm:-mx-6 lg:-mx-8">
-        {(post as any).background_image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={(post as any).background_image} alt={post.title} className="h-[44vh] min-h-[300px] w-full object-cover sm:h-[52vh]" />
-        ) : (
-          <div className="h-[44vh] min-h-[300px] w-full bg-zinc-800 sm:h-[52vh]" />
+      <section className="relative overflow-hidden rounded-3xl border border-[var(--line-soft)] bg-[linear-gradient(140deg,#f7f6f2_0%,#ece8df_55%,#e4ded3_100%)]">
+        {(post as any).background_image && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={(post as any).background_image} alt={post.title} className="absolute inset-0 h-full w-full object-cover opacity-20" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.55),rgba(247,246,242,0.94))]" />
+          </>
         )}
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
-          <div className="mx-auto max-w-5xl space-y-3">
-            <p className="text-sm text-zinc-200">{formatDate(post.publishedAt || post.createdAt)}</p>
-            <h1 className="text-3xl font-bold sm:text-5xl">{post.title}</h1>
-            <p className="text-sm text-zinc-200">
-              {post.author.name || post.author.email} · {(post as any).reading_time || 1} min read · {post.comments.length} 条评论
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
-                <span key={t.tagId} className="rounded bg-white/15 px-2 py-1 text-xs">
-                  #{t.tag.name}
-                </span>
-              ))}
+
+        <div className="relative p-5 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-end">
+            <div className="overflow-hidden rounded-2xl border border-white/70 bg-zinc-200/60 shadow-sm">
+              {(post as any).cover_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={(post as any).cover_image} alt={post.title} className="h-64 w-full object-cover sm:h-72 lg:h-[360px]" />
+              ) : (
+                <div className="flex h-64 items-end p-4 text-xs tracking-[0.2em] text-zinc-500 sm:h-72 lg:h-[360px]">KOMOREBI</div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs tracking-[0.26em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
+              <h1 className="text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">{post.title}</h1>
+              <p className="max-w-2xl text-sm leading-7 text-zinc-600">{post.excerpt || '写给沉默时刻的短章。'}</p>
+              <p className="text-sm text-zinc-600">
+                {post.author.name || post.author.email} · {(post as any).reading_time || 1} min read · {post.comments.length} 条评论
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
+                  <span key={t.tagId} className="rounded-full border border-[var(--line-soft)] bg-white/70 px-2.5 py-1 text-xs text-zinc-700">
+                    #{t.tag.name}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[2.2fr_1fr]">
-        <article className="card space-y-4">
-          <MdxContent source={post.content} />
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-5">
+          <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-5 sm:p-7">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
+              <p className="text-xs tracking-[0.2em] text-zinc-500">ARTICLE</p>
+              {session?.user && (
+                <form action={toggleFavorite}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <button className="rounded-md border border-[var(--line-strong)] bg-[var(--bg-ink)] px-3 py-1.5 text-xs text-white hover:opacity-90" type="submit">
+                    {favorited ? '取消收藏' : '收藏文章'}
+                  </button>
+                </form>
+              )}
+            </div>
+            <MdxContent source={post.content} />
+          </article>
 
-          {session?.user && (
-            <form action={toggleFavorite}>
-              <input type="hidden" name="postId" value={post.id} />
-              <button className="btn" type="submit">
-                {favorited ? '取消收藏' : '收藏文章'}
-              </button>
-            </form>
-          )}
-
-          <section className="space-y-2">
-            <h2 className="text-xl font-semibold">评论</h2>
+          <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
+            <h2 className="text-2xl font-semibold text-zinc-800">评论</h2>
             {session?.user && (
-              <form action="/api/comments" method="post" className="space-y-2">
+              <form action="/api/comments" method="post" className="mt-4 space-y-3">
                 <input type="hidden" name="postId" value={post.id} />
                 <textarea name="content" className="input min-h-24" required placeholder="写下你的评论" />
                 <button className="btn" type="submit">
@@ -173,45 +190,53 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
                 </button>
               </form>
             )}
-            <div className="space-y-2">
+            <div className="mt-4 space-y-3">
+              {post.comments.length === 0 && <p className="text-sm text-zinc-500">还没有评论。</p>}
               {post.comments.map((c: any) => (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" key={c.id}>
-                  <p className="text-sm text-zinc-500">{c.user.name || c.user.email}</p>
-                  <p>{c.content}</p>
+                <div className="rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3.5" key={c.id}>
+                  <p className="text-xs tracking-wide text-zinc-500">{c.user.name || c.user.email}</p>
+                  <p className="mt-1.5 leading-7 text-zinc-700">{c.content}</p>
                 </div>
               ))}
             </div>
           </section>
-        </article>
+        </div>
 
-        <aside className="space-y-4">
-          <div className="card text-center">
-            <div className="mx-auto h-20 w-20 overflow-hidden rounded-full border border-zinc-200">
-              {post.author.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.author.image} alt={post.author.name || post.author.email} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-zinc-100 text-2xl text-zinc-600">
-                  {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <div className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(180deg,#f9f7f3,#eeebe4)]">
+            <div className="h-12 bg-[linear-gradient(90deg,rgba(111,127,111,0.28),rgba(111,127,111,0.08))]" />
+            <div className="-mt-7 px-5 pb-5 text-center">
+              <div className="mx-auto h-20 w-20 overflow-hidden rounded-full border border-white bg-zinc-100 shadow-sm">
+                {post.author.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.author.image} alt={post.author.name || post.author.email} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-600">
+                    {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <h3 className="mt-3 text-4xl/none font-semibold text-zinc-800">{authorPostCount}</h3>
+              <p className="text-xs tracking-[0.2em] text-zinc-500">ARTICLES WRITTEN</p>
+              <h4 className="mt-4 text-2xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
+              <p className="mt-1 text-sm leading-7 text-zinc-600">{post.author.bio || '热爱写作，持续输出。'}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-[var(--line-soft)] bg-white/65 p-3 text-sm">
+                <div>
+                  <p className="text-zinc-500">Tags</p>
+                  <p className="text-xl font-semibold text-zinc-800">{globalTagCount}</p>
                 </div>
-              )}
-            </div>
-            <h3 className="mt-3 text-2xl font-semibold">{post.author.name || '匿名作者'}</h3>
-            <p className="mt-1 text-sm text-zinc-500">{post.author.bio || '热爱写作，持续输出。'}</p>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <p className="text-zinc-500">Articles</p>
-                <p className="text-2xl font-semibold">{authorPostCount}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500">Tags</p>
-                <p className="text-2xl font-semibold">{globalTagCount}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500">Comments</p>
-                <p className="text-2xl font-semibold">{post.comments.length}</p>
+                <div>
+                  <p className="text-zinc-500">Comments</p>
+                  <p className="text-xl font-semibold text-zinc-800">{post.comments.length}</p>
+                </div>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--line-soft)] bg-white/65 p-4">
+            <p className="text-xs tracking-[0.24em] text-zinc-500">IDENTITY</p>
+            <p className="mt-2 text-sm leading-7 text-zinc-600">文档编号：{post.id}</p>
+            <p className="text-sm leading-7 text-zinc-600">发布日期：{formatDate(post.publishedAt || post.createdAt)}</p>
           </div>
         </aside>
       </section>

@@ -50,6 +50,50 @@ body {
   @apply rounded-xl p-4 shadow-sm sm:p-5;
 }
 
+.prose {
+  color: #313332;
+}
+
+.prose p {
+  margin: 0.9rem 0;
+  line-height: 1.95;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  color: #1f2322;
+  letter-spacing: 0.01em;
+}
+
+.prose a {
+  color: #586f58;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.prose blockquote {
+  border-left: 3px solid #8ea08e;
+  background: rgba(245, 247, 242, 0.9);
+  border-radius: 0 10px 10px 0;
+  padding: 0.7rem 0.9rem;
+  color: #4a524a;
+}
+
+.prose code {
+  background: rgba(209, 206, 196, 0.36);
+  border-radius: 0.3rem;
+  padding: 0.08rem 0.35rem;
+}
+
+.prose pre {
+  border: 1px solid #3a3e45;
+  background: #151920;
+  border-radius: 0.8rem;
+  padding: 0.95rem;
+}
+
 .ProseMirror {
   min-height: 42vh;
   outline: none;
