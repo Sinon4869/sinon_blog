@@ -13,22 +13,12 @@ type AuditLogItem = {
   created_at: string;
 };
 
-type AdminUserItem = {
-  id: string;
-  email: string;
-  name?: string | null;
-  role: 'USER' | 'ADMIN';
-  disabled: number;
-  createdAt: string;
-  last_login_at?: string | null;
-};
-
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect('/login');
   if (session.user.role !== 'ADMIN') redirect('/');
 
-  const [users, posts, comments, userList, logs]: [number, number, number, AdminUserItem[], AuditLogItem[]] = await Promise.all([
+  const [users, posts, comments, userList, logsRaw] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -38,6 +28,14 @@ export default async function AdminPage() {
     }),
     prisma.auditLog.findMany({ take: 20 })
   ]);
+
+  const logs: AuditLogItem[] = (logsRaw || []).map((l: Record<string, unknown>) => ({
+    id: String(l.id || ''),
+    action: String(l.action || ''),
+    created_at: String(l.created_at || ''),
+    actor_user_id: l.actor_user_id ? String(l.actor_user_id) : null,
+    target_user_id: l.target_user_id ? String(l.target_user_id) : null
+  }));
 
   return (
     <div className="space-y-3">
