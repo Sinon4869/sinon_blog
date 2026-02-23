@@ -10,37 +10,20 @@ import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
-function slugCandidates(raw: string) {
-  const set = new Set<string>();
-  const value = (raw || '').trim();
-  if (value) set.add(value);
-  try {
-    const decoded = decodeURIComponent(value);
-    if (decoded) set.add(decoded);
-  } catch {
-    // ignore malformed encoding
-  }
-  return Array.from(set);
+async function findPostById(id: string) {
+  return prisma.post.findUnique({
+    where: { id },
+    include: { author: true }
+  });
 }
 
-async function findPostBySlug(rawSlug: string) {
-  for (const candidate of slugCandidates(rawSlug)) {
-    const post = await prisma.post.findUnique({
-      where: { slug: candidate },
-      include: { author: true }
-    });
-    if (post) return post;
-  }
-  return null;
-}
-
-export async function generateMetadata({ params }: { params: Promise<{ year: string; month: string; day: string; slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
-  const post = await findPostBySlug(slug);
+export async function generateMetadata({ params }: { params: Promise<{ year: string; month: string; day: string; id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const post = await findPostById(id);
   if (!post) return { title: '文章不存在' };
 
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
-  const postPath = buildPostPath(post as { slug: string; publishedAt?: Date | string | null; createdAt?: Date | string | null });
+  const postPath = buildPostPath(post as { id: string; publishedAt?: Date | string | null; createdAt?: Date | string | null });
   const url = `${base}${postPath}`;
   const title = (post as any).seo_title || post.title;
   const description = (post as any).seo_description || post.excerpt || '文章详情';
@@ -66,30 +49,34 @@ export async function generateMetadata({ params }: { params: Promise<{ year: str
   };
 }
 
-export default async function PostDetail({ params }: { params: Promise<{ year: string; month: string; day: string; slug: string }> }) {
-  const { year, month, day, slug } = await params;
+export default async function PostDetail({ params }: { params: Promise<{ year: string; month: string; day: string; id: string }> }) {
+  const { year, month, day, id } = await params;
   const session = await getServerSession(authOptions);
 
-  let post = null as any;
-  for (const candidate of slugCandidates(slug)) {
-    post = await prisma.post.findUnique({
-      where: { slug: candidate },
-      include: {
-        author: true,
-        tags: { include: { tag: true } },
-        comments: { include: { user: true }, orderBy: { createdAt: 'desc' } }
-      }
-    });
-    if (post) break;
-  }
+  const post = await prisma.post.findUnique({
+    where: { id },
+    include: {
+      author: true,
+      tags: { include: { tag: true } },
+      comments: { include: { user: true }, orderBy: { createdAt: 'desc' } }
+    }
+  });
 
   if (!post || (!post.published && session?.user?.id !== post.authorId && session?.user?.role !== 'ADMIN')) {
     return notFound();
   }
 
-  const canonicalPath = buildPostPath(post as { slug: string; publishedAt?: Date | string | null; createdAt?: Date | string | null });
-  const currentPath = `/posts/${year}/${month}/${day}/${encodeURIComponent(slug)}`;
-  if (currentPath !== canonicalPath) {
+  const canonicalPath = buildPostPath(post as { id: string; publishedAt?: Date | string | null; createdAt?: Date | string | null });
+  const canonicalParts = canonicalPath.split('/').filter(Boolean);
+  const canonicalYear = canonicalParts[1] || '';
+  const canonicalMonth = canonicalParts[2] || '';
+  const canonicalDay = canonicalParts[3] || '';
+  const canonicalId = canonicalParts[4] || '';
+  const currentId = id;
+
+  const sameDate = year === canonicalYear && month === canonicalMonth && day === canonicalDay;
+  const sameId = currentId === canonicalId;
+  if (!(sameDate && sameId)) {
     redirect(canonicalPath as Route);
   }
 

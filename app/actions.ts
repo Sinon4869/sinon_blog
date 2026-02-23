@@ -10,6 +10,10 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, slugify } from '@/lib/utils';
 
+function makeInternalPostSlug() {
+  return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 async function requireUser() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error('请先登录');
@@ -35,8 +39,7 @@ export async function savePost(formData: FormData) {
 
   if (!title || !content) throw new Error('标题与内容不能为空');
 
-  const slugBase = slugify(title);
-  const slug = id ? undefined : `${slugBase}-${Date.now().toString().slice(-5)}`;
+  const slug = id ? undefined : makeInternalPostSlug();
 
   const tags = tagLine
     .split(',')
@@ -129,7 +132,7 @@ export async function setPostPublished(formData: FormData) {
 
   revalidatePath('/');
   revalidatePath('/dashboard');
-  if (post.slug) revalidatePath(buildPostPath(post));
+  if (post.id) revalidatePath(buildPostPath(post));
 }
 
 export async function saveSiteConfig(formData: FormData) {
@@ -195,9 +198,9 @@ export async function toggleFavorite(formData: FormData) {
   revalidatePath('/');
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { slug: true, publishedAt: true, createdAt: true }
+    select: { id: true, publishedAt: true, createdAt: true }
   });
-  if (post?.slug) revalidatePath(buildPostPath(post));
+  if (post?.id) revalidatePath(buildPostPath(post));
 }
 
 export async function updatePassword(formData: FormData) {

@@ -26,7 +26,6 @@ export async function GET(req: Request) {
       take: pageSize,
       select: {
         id: true,
-        slug: true,
         title: true,
         excerpt: true,
         publishedAt: true,

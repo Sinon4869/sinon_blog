@@ -29,8 +29,8 @@ function dateParts(input?: Date | string | null) {
   };
 }
 
-export function buildPostPath(input: { slug: string; publishedAt?: Date | string | null; createdAt?: Date | string | null }) {
+export function buildPostPath(input: { id: string; publishedAt?: Date | string | null; createdAt?: Date | string | null }) {
   const base = input.publishedAt || input.createdAt || new Date();
   const { year, month, day } = dateParts(base);
-  return `/posts/${year}/${month}/${day}/${encodeURIComponent(input.slug)}`;
+  return `/posts/${year}/${month}/${day}/${encodeURIComponent(input.id)}`;
 }

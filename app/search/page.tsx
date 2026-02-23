@@ -64,7 +64,6 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       take: PAGE_SIZE,
       select: {
         id: true,
-        slug: true,
         title: true,
         excerpt: true,
         publishedAt: true,

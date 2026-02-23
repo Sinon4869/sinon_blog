@@ -4,6 +4,10 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, slugify } from '@/lib/utils';
 
+function makeInternalPostSlug() {
+  return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 type DraftInput = {
   id?: string;
   title?: string;
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
 
   const words = content.split(/\s+/).filter(Boolean).length;
   const readingTime = Math.max(1, Math.round(words / 220));
-  const slug = id ? undefined : `${slugify(title)}-${Date.now().toString().slice(-5)}`;
+  const slug = id ? undefined : makeInternalPostSlug();
 
   const post = id
     ? await prisma.post.update({
@@ -87,5 +91,5 @@ export async function POST(req: Request) {
     await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
   }
 
-  return Response.json({ ok: true, id: post.id, slug: post.slug, path: buildPostPath(post) });
+  return Response.json({ ok: true, id: post.id, path: buildPostPath(post) });
 }

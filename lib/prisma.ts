@@ -187,7 +187,13 @@ export const prisma = {
         updatedAt: toDate(post0.updatedAt),
         publishedAt: toDate(post0.publishedAt)
       };
-      if (select?.slug) return { slug: post.slug };
+      if (select) {
+        const out: any = {};
+        for (const key of Object.keys(select)) {
+          if (select[key]) out[key] = post[key];
+        }
+        return out;
+      }
       if (include?.author) post.author = await one('SELECT * FROM users WHERE id = ?', post.authorId);
       if (include?.tags) {
         post.tags = await many(

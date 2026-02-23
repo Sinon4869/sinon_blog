@@ -20,7 +20,6 @@ type DashboardSearchParams = {
 type PostItem = {
   id: string;
   title: string;
-  slug: string;
   excerpt?: string | null;
   published: boolean;
   createdAt: string | Date;

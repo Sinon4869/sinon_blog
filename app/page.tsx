@@ -58,7 +58,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         take: PAGE_SIZE,
         select: {
           id: true,
-          slug: true,
           title: true,
           excerpt: true,
           publishedAt: true,
