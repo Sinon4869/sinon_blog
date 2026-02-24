@@ -1,7 +1,7 @@
 'use client';
 
 import { SmartImage } from '@/components/smart-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/core/fonts/inter.css';
@@ -202,7 +202,11 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
               <p className="text-sm font-medium text-zinc-700">封面图（列表卡片）</p>
               <input className="input" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
-              <button type="button" className="tiptap-btn" onClick={() => coverRef.current?.click()}>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--line-strong)] bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                onClick={() => coverRef.current?.click()}
+              >
                 上传封面图
               </button>
               <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleCoverImage(e.target.files?.[0])} />
@@ -211,7 +215,11 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
               <p className="text-sm font-medium text-zinc-700">背景图（文章头图）</p>
               <input className="input" value={backgroundImage} onChange={(e) => setBackgroundImage(e.target.value)} placeholder="https://..." />
-              <button type="button" className="tiptap-btn" onClick={() => backgroundRef.current?.click()}>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--line-strong)] bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                onClick={() => backgroundRef.current?.click()}
+              >
                 上传背景图
               </button>
               <input ref={backgroundRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleBackgroundImage(e.target.files?.[0])} />
