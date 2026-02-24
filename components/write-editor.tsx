@@ -1,7 +1,7 @@
 'use client';
 
 import { SmartImage } from '@/components/smart-image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -30,6 +30,13 @@ type WriteEditorProps = {
     coverImage?: string;
     backgroundImage?: string;
   };
+};
+
+type SlashCommand = {
+  key: string;
+  label: string;
+  keywords: string[];
+  run: () => void;
 };
 
 function looksLikeHtml(input: string) {
@@ -104,6 +111,11 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [toolbarLeft, setToolbarLeft] = useState(0);
   const [toolbarWidth, setToolbarWidth] = useState(0);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashFrom, setSlashFrom] = useState<number | null>(null);
+  const [slashTo, setSlashTo] = useState<number | null>(null);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
@@ -150,6 +162,23 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
             })
             .catch((err) => {
               setFeedback(err instanceof Error ? err.message : '粘贴图片上传失败');
+            })
+            .finally(() => setUploading(false));
+          return true;
+        },
+        drop: (_view, event) => {
+          const e = event as DragEvent;
+          const files = Array.from(e.dataTransfer?.files || []);
+          const image = files.find((f) => f.type.startsWith('image/'));
+          if (!image) return false;
+          e.preventDefault();
+          setUploading(true);
+          uploadToR2(image)
+            .then((url) => {
+              editor?.chain().focus().setImage({ src: url, alt: image.name || 'dropped-image' }).run();
+            })
+            .catch((err) => {
+              setFeedback(err instanceof Error ? err.message : '拖拽图片上传失败');
             })
             .finally(() => setUploading(false));
           return true;
@@ -341,6 +370,95 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     window.location.href = `/write/preview?draft=${encodeURIComponent(encoded)}`;
   }
 
+  const removeSlashTrigger = () => {
+    if (!editor || slashFrom == null || slashTo == null) return;
+    editor.chain().focus().deleteRange({ from: slashFrom, to: slashTo }).run();
+    setSlashOpen(false);
+    setSlashQuery('');
+    setSlashIndex(0);
+    setSlashFrom(null);
+    setSlashTo(null);
+  };
+
+  const slashCommands: SlashCommand[] = useMemo(() => {
+    if (!editor) return [];
+    return [
+      { key: 'text', label: 'Text', keywords: ['文本', 'paragraph'], run: () => editor.chain().focus().setParagraph().run() },
+      { key: 'h1', label: 'Heading 1', keywords: ['标题', 'h1'], run: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
+      { key: 'h2', label: 'Heading 2', keywords: ['标题', 'h2'], run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+      { key: 'h3', label: 'Heading 3', keywords: ['标题', 'h3'], run: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
+      { key: 'bullet', label: 'Bullet List', keywords: ['列表', 'bullet'], run: () => editor.chain().focus().toggleBulletList().run() },
+      { key: 'number', label: 'Numbered List', keywords: ['编号', 'ordered'], run: () => editor.chain().focus().toggleOrderedList().run() },
+      { key: 'task', label: 'To-do List', keywords: ['任务', 'todo'], run: () => editor.chain().focus().toggleTaskList().run() },
+      { key: 'quote', label: 'Quote', keywords: ['引用'], run: () => editor.chain().focus().toggleBlockquote().run() },
+      { key: 'code', label: 'Code Block', keywords: ['代码'], run: () => insertCodeBlock() },
+      { key: 'image', label: 'Image Upload', keywords: ['图片', 'image'], run: () => fileRef.current?.click() }
+    ];
+  }, [editor, slashFrom, slashTo]);
+
+  const filteredSlash = useMemo(() => {
+    const q = slashQuery.trim().toLowerCase();
+    if (!q) return slashCommands;
+    return slashCommands.filter((c) => c.label.toLowerCase().includes(q) || c.keywords.some((k) => k.toLowerCase().includes(q)));
+  }, [slashCommands, slashQuery]);
+
+  useEffect(() => {
+    if (!editor || editorMode !== 'notion') return;
+
+    const detectSlash = () => {
+      const { from } = editor.state.selection;
+      const $from = editor.state.selection.$from;
+      const textBefore = $from.parent.textContent.slice(0, $from.parentOffset);
+      const idx = textBefore.lastIndexOf('/');
+      if (idx < 0) {
+        setSlashOpen(false);
+        return;
+      }
+      const query = textBefore.slice(idx + 1);
+      if (/\s/.test(query)) {
+        setSlashOpen(false);
+        return;
+      }
+      setSlashOpen(true);
+      setSlashQuery(query);
+      setSlashFrom($from.start() + idx);
+      setSlashTo(from);
+      setSlashIndex(0);
+    };
+
+    detectSlash();
+    editor.on('selectionUpdate', detectSlash);
+    editor.on('update', detectSlash);
+    editor.on('transaction', detectSlash);
+    return () => {
+      editor.off('selectionUpdate', detectSlash);
+      editor.off('update', detectSlash);
+      editor.off('transaction', detectSlash);
+    };
+  }, [editor, editorMode, slashOpen, filteredSlash, slashIndex]);
+
+  useEffect(() => {
+    if (!slashOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setSlashIndex((v) => (filteredSlash.length ? (v + 1) % filteredSlash.length : 0));
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setSlashIndex((v) => (filteredSlash.length ? (v - 1 + filteredSlash.length) % filteredSlash.length : 0));
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setSlashOpen(false);
+      } else if (event.key === 'Enter' && filteredSlash[slashIndex]) {
+        event.preventDefault();
+        removeSlashTrigger();
+        filteredSlash[slashIndex].run();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [slashOpen, filteredSlash, slashIndex]);
+
   if (!editor) return null;
 
   return (
@@ -451,7 +569,60 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         )}
 
         <div className="relative z-0 min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
+          {editorMode === 'notion' && (
+            <div className="mb-3 flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                className="rounded border border-zinc-300 px-2 py-1 text-zinc-600 hover:bg-zinc-100"
+                onClick={() => {
+                  setSlashOpen(true);
+                  setSlashQuery('');
+                  setSlashIndex(0);
+                }}
+              >
+                + 插入块
+              </button>
+              <button
+                type="button"
+                className="rounded border border-zinc-300 px-2 py-1 text-zinc-600 hover:bg-zinc-100"
+                onClick={() => editor.chain().focus().deleteSelection().run()}
+              >
+                删除当前选择
+              </button>
+            </div>
+          )}
+
           <EditorContent editor={editor} />
+
+          {editorMode === 'notion' && slashOpen && (
+            <div className="absolute left-4 top-16 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg md:left-8">
+              <input
+                value={slashQuery}
+                onChange={(e) => {
+                  setSlashQuery(e.target.value);
+                  setSlashIndex(0);
+                }}
+                placeholder="/ 输入命令"
+                className="mb-2 w-full rounded-md border border-zinc-200 px-2 py-1 text-sm"
+              />
+              <div className="max-h-72 overflow-auto">
+                {filteredSlash.length === 0 && <p className="px-2 py-1 text-xs text-zinc-500">无匹配命令</p>}
+                {filteredSlash.map((cmd, idx) => (
+                  <button
+                    key={cmd.key}
+                    type="button"
+                    className={`block w-full rounded px-2 py-1.5 text-left text-sm ${idx === slashIndex ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-100'}`}
+                    onClick={() => {
+                      removeSlashTrigger();
+                      cmd.run();
+                    }}
+                  >
+                    {cmd.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
