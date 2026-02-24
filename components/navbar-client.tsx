@@ -56,9 +56,9 @@ export function NavbarClient({
           hidden ? '-translate-y-24 opacity-0' : 'translate-y-0 opacity-100'
         } ${compact ? 'px-3 py-2 shadow-md shadow-zinc-900/5 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
       >
-        <Link href="/" className="flex items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-200 text-sm">木</span>
-          <span className="text-[28px] font-semibold leading-none tracking-tight">{siteTitle}</span>
+        <Link href="/" className="flex min-w-0 items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-200 text-sm">木</span>
+          <span className="max-w-[46vw] truncate text-[24px] font-semibold leading-none tracking-tight sm:max-w-none sm:text-[28px]">{siteTitle}</span>
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm md:flex">
@@ -119,7 +119,7 @@ export function NavbarClient({
           )}
         </nav>
 
-        <details className="group relative md:hidden">
+        <details className="group relative shrink-0 md:hidden">
             <summary className="list-none rounded-md border border-[var(--line-soft)] bg-[#f8f7f3] px-3 py-2 text-sm text-zinc-700 transition-all active:scale-[0.98]">菜单</summary>
           <nav className="absolute right-0 z-20 mt-2 min-w-44 rounded-lg border border-[var(--line-soft)] bg-[#f8f7f3] p-2 shadow-lg">
             <Link href="/search" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
