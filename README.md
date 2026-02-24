@@ -93,6 +93,22 @@ wrangler d1 list
 - 每次新增 migration 同步补充对应的 rollback SQL 脚本
 - 变更后运行 smoke test：`/`、`/login`、`/api/auth/signin/google`
 
+## 9) OAuth 冲突处理与 Secrets 轮换（P0）
+
+### OAuth 冲突处理
+- 同邮箱已存在密码账号时，Google 登录返回 `OAuthAccountNotLinked`
+- 必须先通过密码登录，再进行账号绑定
+- 未验证邮箱的 OAuth 登录会被拒绝（`EmailNotVerified`）
+
+### Secrets 轮换规范
+- 轮换对象：`CF_API_TOKEN`、`CF_ACCOUNT_ID`、`GOOGLE_ID`、`GOOGLE_SECRET`、`AUTH_SECRET`
+- 轮换步骤：
+  1. 在 GitHub Secrets 更新新值
+  2. 在 dev 分支触发部署验证
+  3. 验证登录与发布链路
+  4. 再切 main 全量
+- 轮换后必须执行 smoke：`/`、`/login`、`/write`、`/api/auth/signin/google`
+
 ### 回滚命令模板（脚本化）
 
 ```bash

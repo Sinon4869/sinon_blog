@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
+import { sanitizeText } from '@/lib/security';
 import { ANONYMOUS_USER_EMAIL, isAnonymousCommentEnabled } from '@/lib/site-settings';
 import { buildPostPath } from '@/lib/utils';
 
@@ -22,12 +24,15 @@ async function ensureAnonymousUser() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
+  const ip = getClientIp(req);
+  const limit = enforceRateLimit(`comment:${ip}`, 20, 10 * 60 * 1000);
+  if (!limit.ok) return NextResponse.json({ error: '评论过于频繁，请稍后再试' }, { status: 429 });
   const allowAnonymous = await isAnonymousCommentEnabled();
   if (!session?.user?.id && !allowAnonymous) return NextResponse.redirect(new URL('/login', req.url));
 
   const formData = await req.formData();
   const postId = formData.get('postId')?.toString();
-  const content = formData.get('content')?.toString();
+  const content = sanitizeText(formData.get('content')?.toString() || '', 2000);
 
   if (!postId || !content) return NextResponse.json({ error: 'bad request' }, { status: 400 });
 

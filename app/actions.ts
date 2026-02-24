@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SETTING_KEYS } from '@/lib/site-settings';
+import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { savePostWithTags } from '@/lib/post-service';
 import { buildPostPath } from '@/lib/utils';
 
@@ -31,12 +32,12 @@ const profileSchema = z.object({
 export async function savePost(formData: FormData) {
   const user = await requireUser();
   const id = formData.get('id')?.toString();
-  const title = formData.get('title')?.toString() ?? '';
-  const content = formData.get('content')?.toString() ?? '';
-  const excerpt = formData.get('excerpt')?.toString() ?? '';
-  const tagLine = formData.get('tags')?.toString() ?? '';
-  const coverImage = formData.get('coverImage')?.toString().trim() ?? '';
-  const backgroundImage = formData.get('backgroundImage')?.toString().trim() ?? '';
+  const title = sanitizeText(formData.get('title')?.toString() ?? '', 200);
+  const content = sanitizeHtml(formData.get('content')?.toString() ?? '');
+  const excerpt = sanitizeText(formData.get('excerpt')?.toString() ?? '', 500);
+  const tagLine = sanitizeText(formData.get('tags')?.toString() ?? '', 300);
+  const coverImage = sanitizeText(formData.get('coverImage')?.toString().trim() ?? '', 2000);
+  const backgroundImage = sanitizeText(formData.get('backgroundImage')?.toString().trim() ?? '', 2000);
   const published = formData.get('published') === 'on';
 
   if (!title || !content) throw new Error('标题与内容不能为空');

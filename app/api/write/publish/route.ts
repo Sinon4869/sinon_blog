@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { buildPostPath, slugify } from '@/lib/utils';
 
 function makeInternalPostSlug() {
@@ -24,12 +25,12 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as DraftInput;
   const id = body.id?.trim();
-  const title = body.title?.trim() || '';
-  const content = body.content?.trim() || '';
-  const excerpt = body.excerpt?.trim() || '';
-  const coverImage = body.coverImage?.trim() || '';
-  const backgroundImage = body.backgroundImage?.trim() || '';
-  const tagLine = body.tags?.trim() || '';
+  const title = sanitizeText(body.title?.trim() || '', 200);
+  const content = sanitizeHtml(body.content?.trim() || '');
+  const excerpt = sanitizeText(body.excerpt?.trim() || '', 500);
+  const coverImage = sanitizeText(body.coverImage?.trim() || '', 2000);
+  const backgroundImage = sanitizeText(body.backgroundImage?.trim() || '', 2000);
+  const tagLine = sanitizeText(body.tags?.trim() || '', 300);
 
   if (!title || !content) return Response.json({ error: '标题与内容不能为空' }, { status: 400 });
 

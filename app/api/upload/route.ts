@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 import { authOptions } from '@/lib/auth';
+import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
 
 type R2BucketLike = {
   put: (key: string, value: ArrayBuffer, options?: Record<string, unknown>) => Promise<unknown>;
@@ -28,6 +29,9 @@ function safeName(name: string) {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
+  const ip = getClientIp(req);
+  const limit = enforceRateLimit(`upload:${ip}`, 30, 10 * 60 * 1000);
+  if (!limit.ok) return Response.json({ error: '上传过于频繁，请稍后再试' }, { status: 429 });
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const form = await req.formData();

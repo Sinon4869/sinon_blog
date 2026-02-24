@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { sanitizeHtml } from '@/lib/security';
 
 type DraftPayload = {
   id?: string;
@@ -80,7 +81,7 @@ export function WritePreviewClient({ draftRaw }: { draftRaw: string }) {
         <h2 className="text-3xl font-bold">{draft.title || '未命名标题'}</h2>
         {draft.excerpt && <p className="text-zinc-600">{draft.excerpt}</p>}
         {draft.coverImage && <img src={draft.coverImage} alt="cover" className="h-56 w-full rounded-xl object-cover" />}
-        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: draft.content || '' }} />
+        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.content || '') }} />
       </article>
     </div>
   );
