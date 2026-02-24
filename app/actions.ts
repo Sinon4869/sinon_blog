@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma';
 import { SETTING_KEYS } from '@/lib/site-settings';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { savePostWithTags } from '@/lib/post-service';
+import { archiveNotionByPostId, syncPostToNotion } from '@/lib/notion-sync';
 import { buildPostPath } from '@/lib/utils';
 
 function makeInternalPostSlug() {
@@ -68,6 +69,7 @@ export async function savePost(formData: FormData) {
   });
 
   await bumpCacheVersion();
+  await syncPostToNotion(post.id, published ? 'publish' : 'save');
   revalidatePath('/');
   revalidatePath('/dashboard');
   revalidatePath(buildPostPath(post));
@@ -84,6 +86,7 @@ export async function deletePost(formData: FormData) {
 
   await prisma.post.delete({ where: { id } });
   await bumpCacheVersion();
+  await archiveNotionByPostId(id);
   revalidatePath('/');
   revalidatePath('/dashboard');
 }
@@ -107,6 +110,7 @@ export async function setPostPublished(formData: FormData) {
   });
 
   await bumpCacheVersion();
+  await syncPostToNotion(post.id, 'toggle-publish');
   revalidatePath('/');
   revalidatePath('/dashboard');
   if (post.id) revalidatePath(buildPostPath(post));

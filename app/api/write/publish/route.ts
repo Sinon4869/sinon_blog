@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { bumpCacheVersion } from '@/lib/cf-cache';
 import { getRequestId, logObs, alertLevel } from '@/lib/obs';
+import { syncPostToNotion } from '@/lib/notion-sync';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { buildPostPath, slugify } from '@/lib/utils';
 
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
   }
 
   await bumpCacheVersion();
+  await syncPostToNotion(post.id, 'publish');
 
   logObs('publish_post', {
     requestId,
