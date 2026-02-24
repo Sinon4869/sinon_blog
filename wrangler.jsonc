@@ -27,6 +27,12 @@
       "database_id": "1acc05d4-49bb-4306-8115-5646a945dc9c"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE_KV",
+      "id": "8df6585bdf9a49bcad0a04f7a3a3ae83"
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "BLOG_ASSETS",
@@ -53,6 +59,12 @@
           "binding": "DB",
           "database_name": "komorebi-dev-db",
           "database_id": "b188ca51-b44e-48c5-8463-baf3091fc279"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CACHE_KV",
+          "id": "cc871dae786d4038bf0d970ba9a01d34"
         }
       ],
       "r2_buckets": [
