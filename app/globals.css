@@ -410,12 +410,19 @@ body {
   }
 
   .mobile-reading table {
-    display: block;
+    display: table;
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
-    white-space: nowrap;
+    table-layout: fixed;
+    white-space: normal;
+    font-size: 0.9rem;
+  }
+
+  .mobile-reading th,
+  .mobile-reading td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    padding: 0.45rem 0.4rem;
   }
 
   .mobile-reading img,
