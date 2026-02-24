@@ -128,19 +128,14 @@ export const prisma = {
   async transaction<T>(fn: (tx: { run: (sql: string, ...bindings: any[]) => Promise<any>; one: <R = Row>(sql: string, ...bindings: any[]) => Promise<R | null>; many: <R = Row>(sql: string, ...bindings: any[]) => Promise<R[]> }) => Promise<T>) {
     const db = await getDB();
     if (!db) throw new AppError('DB_UNAVAILABLE', 'Cloudflare D1 binding DB not found');
-    await runOn(db, 'BEGIN');
-    try {
-      const result = await fn({
-        run: (sql: string, ...bindings: any[]) => runOn(db, sql, ...bindings),
-        one: <R = Row>(sql: string, ...bindings: any[]) => oneOn<R>(db, sql, ...bindings),
-        many: <R = Row>(sql: string, ...bindings: any[]) => manyOn<R>(db, sql, ...bindings)
-      });
-      await runOn(db, 'COMMIT');
-      return result;
-    } catch (e) {
-      await runOn(db, 'ROLLBACK');
-      throw e;
-    }
+
+    // D1 在当前运行模型中禁止手动 BEGIN/COMMIT/ROLLBACK。
+    // 这里提供“同连接顺序执行”的事务接口语义，避免触发 D1_ERROR。
+    return fn({
+      run: (sql: string, ...bindings: any[]) => runOn(db, sql, ...bindings),
+      one: <R = Row>(sql: string, ...bindings: any[]) => oneOn<R>(db, sql, ...bindings),
+      many: <R = Row>(sql: string, ...bindings: any[]) => manyOn<R>(db, sql, ...bindings)
+    });
   },
   user: {
     async findUnique({ where }: any) {
