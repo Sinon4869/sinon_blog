@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/utils';
 
 type SyncState = 'ok' | 'pending' | 'error' | 'skipped';
 
@@ -244,7 +245,14 @@ function readRichTextToString(value: any): string {
   return arr.map((i) => i?.plain_text || i?.text?.content || '').join('').trim();
 }
 
-function extractNotionUpdate(payload: any): { notionPageId: string; title?: string; excerpt?: string; content?: string } | null {
+function extractNotionUpdate(payload: any): {
+  notionPageId: string;
+  title?: string;
+  excerpt?: string;
+  content?: string;
+  tags?: string[];
+  published?: boolean;
+} | null {
   const p = payload?.data || payload;
   const notionPageId = p?.id || p?.page_id || payload?.id;
   if (!notionPageId) return null;
@@ -253,12 +261,17 @@ function extractNotionUpdate(payload: any): { notionPageId: string; title?: stri
   const title = readRichTextToString(props?.Title?.title || props?.title?.title);
   const excerpt = readRichTextToString(props?.Excerpt?.rich_text || props?.excerpt?.rich_text);
   const content = readRichTextToString(payload?.content_blocks || props?.Content?.rich_text || []);
+  const published = typeof props?.Published?.checkbox === 'boolean' ? Boolean(props.Published.checkbox) : undefined;
+  const tagsRaw = Array.isArray(props?.Tags?.multi_select) ? props.Tags.multi_select : [];
+  const tags = tagsRaw.map((t: any) => String(t?.name || '').trim()).filter(Boolean);
 
   return {
     notionPageId: String(notionPageId),
     title: title || undefined,
     excerpt: excerpt || undefined,
-    content: content || undefined
+    content: content || undefined,
+    tags,
+    published
   };
 }
 
@@ -331,9 +344,23 @@ export async function consumePendingNotionEvents(limit = 20) {
         data: {
           title: incoming.title || (post as any).title,
           excerpt: incoming.excerpt ?? (post as any).excerpt,
-          content: incoming.content || (post as any).content
+          content: incoming.content || (post as any).content,
+          published: incoming.published === undefined ? (post as any).published : incoming.published ? 1 : 0,
+          publishedAt: incoming.published === undefined ? (post as any).publishedAt : incoming.published ? new Date() : null
         }
       });
+
+      if (incoming.tags && incoming.tags.length) {
+        await prisma.postTag.deleteMany({ where: { postId: mapping.post_id } });
+        for (const tagName of incoming.tags.slice(0, 20)) {
+          const tag = await prisma.tag.upsert({
+            where: { slug: slugify(tagName) },
+            update: { name: tagName },
+            create: { name: tagName, slug: slugify(tagName) }
+          });
+          await prisma.postTag.create({ data: { postId: mapping.post_id, tagId: tag.id } });
+        }
+      }
 
       const nextHash = `${post.id}:${new Date().toISOString()}`;
       await upsertSyncMap(mapping.post_id, incoming.notionPageId, nextHash, 'ok');
