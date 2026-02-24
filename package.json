@@ -17,6 +17,9 @@
     "cf-typegen:dev": "wrangler types --env dev --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@blocknote/core": "^0.47.0",
+    "@blocknote/mantine": "^0.47.0",
+    "@blocknote/react": "^0.47.0",
     "@opennextjs/cloudflare": "^1.16.5",
     "@tiptap/extension-code-block-lowlight": "^3.20.0",
     "@tiptap/extension-highlight": "^3.20.0",
