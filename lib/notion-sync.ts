@@ -42,22 +42,75 @@ async function ensureSyncTables() {
   ensured = true;
 }
 
-function stripHtml(input: string) {
-  return input.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+function htmlToLines(input: string) {
+  return input
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h1|h2|h3|li|blockquote|pre)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<h1[^>]*>/gi, '# ')
+    .replace(/<h2[^>]*>/gi, '## ')
+    .replace(/<h3[^>]*>/gi, '### ')
+    .replace(/<blockquote[^>]*>/gi, '> ')
+    .replace(/<pre[^>]*>/gi, '```\n')
+    .replace(/<\/pre>/gi, '\n```')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function rt(content: string) {
+  return [{ type: 'text', text: { content: content.slice(0, 1900) } }];
 }
 
 function contentToNotionBlocks(content: string) {
-  const plain = stripHtml(content);
-  const chunks: string[] = [];
-  for (let i = 0; i < plain.length; i += 1800) chunks.push(plain.slice(i, i + 1800));
-  const textBlocks = chunks.slice(0, 20).map((chunk) => ({
-    object: 'block',
-    type: 'paragraph',
-    paragraph: {
-      rich_text: [{ type: 'text', text: { content: chunk } }]
+  const lines = htmlToLines(content);
+  const blocks: any[] = [];
+  let inCode = false;
+  const codeBuf: string[] = [];
+
+  const flushCode = () => {
+    if (!codeBuf.length) return;
+    blocks.push({ object: 'block', type: 'code', code: { language: 'plain text', rich_text: rt(codeBuf.join('\n')) } });
+    codeBuf.length = 0;
+  };
+
+  for (const line of lines) {
+    if (line === '```') {
+      inCode = !inCode;
+      if (!inCode) flushCode();
+      continue;
     }
-  }));
-  return textBlocks.length ? textBlocks : [{ object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: ' ' } }] } }];
+    if (inCode) {
+      codeBuf.push(line);
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      blocks.push({ object: 'block', type: 'heading_3', heading_3: { rich_text: rt(line.slice(4)) } });
+    } else if (line.startsWith('## ')) {
+      blocks.push({ object: 'block', type: 'heading_2', heading_2: { rich_text: rt(line.slice(3)) } });
+    } else if (line.startsWith('# ')) {
+      blocks.push({ object: 'block', type: 'heading_1', heading_1: { rich_text: rt(line.slice(2)) } });
+    } else if (/^[-*]\s+/.test(line)) {
+      blocks.push({ object: 'block', type: 'bulleted_list_item', bulleted_list_item: { rich_text: rt(line.replace(/^[-*]\s+/, '')) } });
+    } else if (/^\d+[.)]\s+/.test(line)) {
+      blocks.push({ object: 'block', type: 'numbered_list_item', numbered_list_item: { rich_text: rt(line.replace(/^\d+[.)]\s+/, '')) } });
+    } else if (line.startsWith('> ')) {
+      blocks.push({ object: 'block', type: 'quote', quote: { rich_text: rt(line.slice(2)) } });
+    } else {
+      blocks.push({ object: 'block', type: 'paragraph', paragraph: { rich_text: rt(line) } });
+    }
+
+    if (blocks.length >= 90) break;
+  }
+
+  flushCode();
+  return blocks.length ? blocks : [{ object: 'block', type: 'paragraph', paragraph: { rich_text: rt(' ') } }];
 }
 
 async function insertEvent(params: {
@@ -225,7 +278,36 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
 
     let notionPageId = mapping?.notion_page_id;
     if (notionPageId === 'pending') notionPageId = undefined;
+    const existedPage = Boolean(notionPageId);
     let res: Response;
+
+    const replacePageChildren = async (pageId: string) => {
+      const listRes = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, {
+        method: 'GET',
+        headers: notionHeaders
+      });
+      if (listRes.ok) {
+        const listJson = (await listRes.json()) as any;
+        const olds = Array.isArray(listJson?.results) ? listJson.results : [];
+        for (const b of olds) {
+          if (!b?.id) continue;
+          await fetch(`https://api.notion.com/v1/blocks/${b.id}`, {
+            method: 'PATCH',
+            headers: notionHeaders,
+            body: JSON.stringify({ archived: true })
+          });
+        }
+      }
+
+      const blocks = contentToNotionBlocks(String((post as any).content || ''));
+      for (let i = 0; i < blocks.length; i += 50) {
+        await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+          method: 'PATCH',
+          headers: notionHeaders,
+          body: JSON.stringify({ children: blocks.slice(i, i + 50) })
+        });
+      }
+    };
 
     if (notionPageId) {
       res = await fetch(`https://api.notion.com/v1/pages/${notionPageId}`, {
@@ -252,6 +334,9 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
 
     const data = (await res.json()) as { id?: string };
     notionPageId = notionPageId || data.id || '';
+    if (existedPage && notionPageId) {
+      await replacePageChildren(notionPageId);
+    }
     const syncHash = `${post.id}:${new Date((post as any).updatedAt || Date.now()).toISOString()}`;
     await upsertSyncMap(post.id, notionPageId, syncHash, 'ok');
     await insertEvent({ direction: 'blog_to_notion', postId: post.id, notionPageId, status: 'ok', payload: { trigger } });
