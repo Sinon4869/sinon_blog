@@ -156,12 +156,42 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
       'Content-Type': 'application/json'
     };
 
-    const dbRes = await fetch(`https://api.notion.com/v1/databases/${notionDatabaseId}`, {
-      method: 'GET',
-      headers: notionHeaders
-    });
-    const dbJson = dbRes.ok ? ((await dbRes.json()) as any) : null;
-    const dbProps = dbJson?.properties || {};
+    const ensureSchema = async () => {
+      const getRes = await fetch(`https://api.notion.com/v1/databases/${notionDatabaseId}`, {
+        method: 'GET',
+        headers: notionHeaders
+      });
+      if (!getRes.ok) return null;
+      const current = (await getRes.json()) as any;
+      const props = current?.properties || {};
+
+      const toCreate: Record<string, any> = {};
+      if (!props.Slug) toCreate.Slug = { rich_text: {} };
+      if (!props.Excerpt) toCreate.Excerpt = { rich_text: {} };
+      if (!props.Published) toCreate.Published = { checkbox: {} };
+      if (!props.PublishedAt) toCreate.PublishedAt = { date: {} };
+      if (!props.SourceId) toCreate.SourceId = { rich_text: {} };
+      if (!props.Tags) toCreate.Tags = { multi_select: { options: [] } };
+
+      if (Object.keys(toCreate).length > 0) {
+        await fetch(`https://api.notion.com/v1/databases/${notionDatabaseId}`, {
+          method: 'PATCH',
+          headers: notionHeaders,
+          body: JSON.stringify({ properties: toCreate })
+        });
+        const refreshed = await fetch(`https://api.notion.com/v1/databases/${notionDatabaseId}`, {
+          method: 'GET',
+          headers: notionHeaders
+        });
+        if (!refreshed.ok) return props;
+        const refreshedJson = (await refreshed.json()) as any;
+        return refreshedJson?.properties || props;
+      }
+
+      return props;
+    };
+
+    const dbProps = (await ensureSchema()) || {};
     const entries = Object.entries(dbProps) as Array<[string, any]>;
 
     const findProp = (type: string, preferred: string[]) => {
