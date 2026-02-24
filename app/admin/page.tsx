@@ -82,7 +82,12 @@ export default async function AdminPage() {
       </div>
 
       <div className="card space-y-2">
-        <h2 className="text-lg font-semibold">操作审计日志</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">操作审计日志</h2>
+          <a className="rounded border px-2 py-1 text-xs" href="/api/admin/audit?export=csv">
+            导出 CSV
+          </a>
+        </div>
         <ul className="space-y-1 text-sm text-zinc-700">
           {logs.length === 0 && <li>暂无日志</li>}
           {logs.map((l) => (

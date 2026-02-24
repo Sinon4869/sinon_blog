@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 import { authOptions } from '@/lib/auth';
+import { getRequestId, logObs, alertLevel } from '@/lib/obs';
 import { prisma } from '@/lib/prisma';
 import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
 
@@ -37,6 +38,8 @@ function safeName(name: string) {
 }
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
   const session = await getServerSession(authOptions);
   const ip = getClientIp(req);
   const limit = enforceRateLimit(`upload:${ip}`, 30, 10 * 60 * 1000);
@@ -83,9 +86,19 @@ export async function POST(req: Request) {
     data: {
       actor_user_id: session.user.id,
       action: 'upload_image',
-      detail: JSON.stringify({ key, mime: file.type, size: file.size })
+      detail: JSON.stringify({ key, mime: file.type, size: file.size, requestId })
     }
   });
 
-  return Response.json({ key, url: `/api/assets/${key}` });
+  logObs('upload_image', {
+    requestId,
+    userId: session.user.id,
+    key,
+    mime: file.type,
+    size: file.size,
+    level: alertLevel('upload_image'),
+    durationMs: Date.now() - startedAt
+  });
+
+  return Response.json({ requestId, key, url: `/api/assets/${key}` });
 }

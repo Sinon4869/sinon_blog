@@ -109,6 +109,20 @@ wrangler d1 list
   4. 再切 main 全量
 - 轮换后必须执行 smoke：`/`、`/login`、`/write`、`/api/auth/signin/google`
 
+## 10) 可观测性与告警分级
+
+- 关键接口（search/upload/publish）输出结构化日志：`requestId/userId/durationMs/result`。
+- 审计日志支持导出：后台页面可直接导出 CSV（`/api/admin/audit?export=csv`）。
+- 告警分级建议：
+  - `high`: auth/upload 失败、权限拒绝、限流突增
+  - `medium`: publish/deploy 失败或耗时异常
+  - `low`: 常规查询与健康检查
+
+## 11) 文档同步机制
+
+- 所有涉及接口/部署/安全策略变更的 PR，必须同时更新 README 对应章节。
+- 评审要求：若代码修改了 API 契约或运行流程，文档未更新则不合并。
+
 ### 回滚命令模板（脚本化）
 
 ```bash

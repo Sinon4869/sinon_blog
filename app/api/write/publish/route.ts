@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getRequestId, logObs, alertLevel } from '@/lib/obs';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { buildPostPath, slugify } from '@/lib/utils';
 
@@ -20,6 +21,8 @@ type DraftInput = {
 };
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -92,5 +95,13 @@ export async function POST(req: Request) {
     await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
   }
 
-  return Response.json({ ok: true, id: post.id, path: buildPostPath(post) });
+  logObs('publish_post', {
+    requestId,
+    userId: session.user.id,
+    postId: post.id,
+    level: alertLevel('publish_post'),
+    durationMs: Date.now() - startedAt
+  });
+
+  return Response.json({ ok: true, requestId, id: post.id, path: buildPostPath(post) });
 }

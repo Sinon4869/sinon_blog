@@ -2,8 +2,11 @@
 import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
+import { getRequestId, logObs } from '@/lib/obs';
 
 export async function GET(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') || '').trim();
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
@@ -36,5 +39,14 @@ export async function GET(req: Request) {
     prisma.post.count({ where })
   ]);
 
-  return NextResponse.json({ q, page, pageSize, total, items });
+  logObs('search_query', {
+    requestId,
+    q,
+    page,
+    pageSize,
+    total,
+    durationMs: Date.now() - startedAt
+  });
+
+  return NextResponse.json({ requestId, q, page, pageSize, total, items });
 }
