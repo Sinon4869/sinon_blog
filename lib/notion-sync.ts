@@ -116,6 +116,15 @@ async function getMapByPostId(postId: string): Promise<SyncMapRow | null> {
   return row;
 }
 
+async function getMapByNotionPageId(notionPageId: string): Promise<SyncMapRow | null> {
+  await ensureSyncTables();
+  let row: SyncMapRow | null = null;
+  await prisma.transaction(async (tx) => {
+    row = await tx.one<SyncMapRow>('SELECT post_id, notion_page_id FROM sync_map WHERE notion_page_id = ?', notionPageId);
+  });
+  return row;
+}
+
 export async function syncPostToNotion(postId: string, trigger: 'save' | 'publish' | 'toggle-publish') {
   try {
     await ensureSyncTables();
@@ -222,4 +231,123 @@ export async function archiveNotionByPostId(postId: string) {
   } catch (e) {
     await insertEvent({ direction: 'blog_to_notion', postId, status: 'error', payload: { trigger: 'delete' }, error: e instanceof Error ? e.message : 'archive_error' });
   }
+}
+
+type PendingEvent = {
+  id: string;
+  payload_json?: string | null;
+  retry_count?: number | null;
+};
+
+function readRichTextToString(value: any): string {
+  const arr = Array.isArray(value) ? value : [];
+  return arr.map((i) => i?.plain_text || i?.text?.content || '').join('').trim();
+}
+
+function extractNotionUpdate(payload: any): { notionPageId: string; title?: string; excerpt?: string; content?: string } | null {
+  const p = payload?.data || payload;
+  const notionPageId = p?.id || p?.page_id || payload?.id;
+  if (!notionPageId) return null;
+
+  const props = p?.properties || {};
+  const title = readRichTextToString(props?.Title?.title || props?.title?.title);
+  const excerpt = readRichTextToString(props?.Excerpt?.rich_text || props?.excerpt?.rich_text);
+  const content = readRichTextToString(payload?.content_blocks || props?.Content?.rich_text || []);
+
+  return {
+    notionPageId: String(notionPageId),
+    title: title || undefined,
+    excerpt: excerpt || undefined,
+    content: content || undefined
+  };
+}
+
+export async function consumePendingNotionEvents(limit = 20) {
+  await ensureSyncTables();
+
+  let events: PendingEvent[] = [];
+  await prisma.transaction(async (tx) => {
+    events = await tx.many<PendingEvent>(
+      `SELECT id, payload_json, retry_count
+       FROM sync_events
+       WHERE direction = 'notion_to_blog' AND status = 'pending'
+       ORDER BY created_at ASC
+       LIMIT ?`,
+      limit
+    );
+  });
+
+  let applied = 0;
+  let conflicted = 0;
+  let failed = 0;
+
+  for (const ev of events) {
+    try {
+      const payload = ev.payload_json ? JSON.parse(ev.payload_json) : null;
+      const incoming = extractNotionUpdate(payload);
+      if (!incoming?.notionPageId) {
+        await prisma.transaction(async (tx) => {
+          await tx.run(`UPDATE sync_events SET status = 'skipped', error = ?, retry_count = retry_count + 1 WHERE id = ?`, 'invalid_payload', ev.id);
+        });
+        continue;
+      }
+
+      const mapping = await getMapByNotionPageId(incoming.notionPageId);
+
+      if (!mapping?.post_id) {
+        await prisma.transaction(async (tx) => {
+          await tx.run(`UPDATE sync_events SET status = 'skipped', error = ?, retry_count = retry_count + 1 WHERE id = ?`, 'mapping_not_found', ev.id);
+        });
+        continue;
+      }
+
+      const post = await prisma.post.findUnique({ where: { id: mapping.post_id } });
+      if (!post) {
+        await prisma.transaction(async (tx) => {
+          await tx.run(`UPDATE sync_events SET status = 'error', error = ?, retry_count = retry_count + 1 WHERE id = ?`, 'post_not_found', ev.id);
+        });
+        failed += 1;
+        continue;
+      }
+
+      let mapHash = '';
+      await prisma.transaction(async (tx) => {
+        const row = await tx.one<{ sync_hash?: string | null }>('SELECT sync_hash FROM sync_map WHERE post_id = ?', mapping.post_id);
+        mapHash = String(row?.sync_hash || '');
+      });
+
+      const currentHash = `${post.id}:${new Date((post as any).updatedAt || Date.now()).toISOString()}`;
+      if (mapHash && mapHash !== currentHash) {
+        await prisma.transaction(async (tx) => {
+          await tx.run(`UPDATE sync_map SET sync_state = 'conflict', last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE post_id = ?`, 'local_changed_after_last_sync', mapping.post_id);
+          await tx.run(`UPDATE sync_events SET status = 'error', error = ?, retry_count = retry_count + 1 WHERE id = ?`, 'conflict', ev.id);
+        });
+        conflicted += 1;
+        continue;
+      }
+
+      await prisma.post.update({
+        where: { id: mapping.post_id },
+        data: {
+          title: incoming.title || (post as any).title,
+          excerpt: incoming.excerpt ?? (post as any).excerpt,
+          content: incoming.content || (post as any).content
+        }
+      });
+
+      const nextHash = `${post.id}:${new Date().toISOString()}`;
+      await upsertSyncMap(mapping.post_id, incoming.notionPageId, nextHash, 'ok');
+      await prisma.transaction(async (tx) => {
+        await tx.run(`UPDATE sync_events SET status = 'ok', error = NULL WHERE id = ?`, ev.id);
+      });
+      applied += 1;
+    } catch (e) {
+      await prisma.transaction(async (tx) => {
+        await tx.run(`UPDATE sync_events SET status = 'error', error = ?, retry_count = retry_count + 1 WHERE id = ?`, e instanceof Error ? e.message.slice(0, 500) : 'consume_error', ev.id);
+      });
+      failed += 1;
+    }
+  }
+
+  return { total: events.length, applied, conflicted, failed };
 }
