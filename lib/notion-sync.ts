@@ -150,27 +150,51 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
     const mapping: SyncMapRow | null = await getMapByPostId(postId);
     const tags = ((post as any).tags || []).map((t: any) => ({ name: String(t?.tag?.name || '').trim() })).filter((t: any) => t.name);
 
-    const payload = {
-      parent: { database_id: notionDatabaseId },
-      properties: {
-        Title: { title: [{ text: { content: String(post.title || '').slice(0, 200) } }] },
-        Slug: { rich_text: [{ text: { content: String(post.slug || '') } }] },
-        Excerpt: { rich_text: [{ text: { content: String((post as any).excerpt || '').slice(0, 1800) } }] },
-        Published: { checkbox: Boolean((post as any).published) },
-        PublishedAt: { date: (post as any).publishedAt ? { start: new Date((post as any).publishedAt).toISOString() } : null },
-        SourceId: { rich_text: [{ text: { content: post.id } }] },
-        Tags: { multi_select: tags }
-      },
-      children: contentToNotionBlocks(String((post as any).content || ''))
-    } as const;
-
     const notionHeaders = {
       Authorization: `Bearer ${notionToken}`,
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json'
     };
 
+    const dbRes = await fetch(`https://api.notion.com/v1/databases/${notionDatabaseId}`, {
+      method: 'GET',
+      headers: notionHeaders
+    });
+    const dbJson = dbRes.ok ? ((await dbRes.json()) as any) : null;
+    const dbProps = dbJson?.properties || {};
+    const entries = Object.entries(dbProps) as Array<[string, any]>;
+
+    const findProp = (type: string, preferred: string[]) => {
+      for (const p of preferred) if (dbProps[p]?.type === type) return p;
+      const hit = entries.find(([, meta]) => meta?.type === type);
+      return hit?.[0];
+    };
+
+    const titleKey = findProp('title', ['Title', '标题', 'Name', '名称']);
+    const slugKey = findProp('rich_text', ['Slug', 'slug', '链接标识']);
+    const excerptKey = findProp('rich_text', ['Excerpt', '摘要']);
+    const sourceIdKey = findProp('rich_text', ['SourceId', 'source_id', '博客ID']);
+    const publishedKey = findProp('checkbox', ['Published', '发布']);
+    const publishedAtKey = findProp('date', ['PublishedAt', '发布时间']);
+    const tagsKey = findProp('multi_select', ['Tags', '标签']);
+
+    const notionProps: Record<string, any> = {};
+    if (titleKey) notionProps[titleKey] = { title: [{ text: { content: String(post.title || '').slice(0, 200) } }] };
+    if (slugKey) notionProps[slugKey] = { rich_text: [{ text: { content: String(post.slug || '') } }] };
+    if (excerptKey) notionProps[excerptKey] = { rich_text: [{ text: { content: String((post as any).excerpt || '').slice(0, 1800) } }] };
+    if (sourceIdKey) notionProps[sourceIdKey] = { rich_text: [{ text: { content: post.id } }] };
+    if (publishedKey) notionProps[publishedKey] = { checkbox: Boolean((post as any).published) };
+    if (publishedAtKey) notionProps[publishedAtKey] = { date: (post as any).publishedAt ? { start: new Date((post as any).publishedAt).toISOString() } : null };
+    if (tagsKey) notionProps[tagsKey] = { multi_select: tags };
+
+    const payload = {
+      parent: { database_id: notionDatabaseId },
+      properties: notionProps,
+      children: contentToNotionBlocks(String((post as any).content || ''))
+    } as const;
+
     let notionPageId = mapping?.notion_page_id;
+    if (notionPageId === 'pending') notionPageId = undefined;
     let res: Response;
 
     if (notionPageId) {
@@ -189,7 +213,9 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
 
     if (!res.ok) {
       const txt = await res.text();
-      await upsertSyncMap(postId, notionPageId || 'pending', '', 'error', txt.slice(0, 1000));
+      if (notionPageId) {
+        await upsertSyncMap(postId, notionPageId, '', 'error', txt.slice(0, 1000));
+      }
       await insertEvent({ direction: 'blog_to_notion', postId, notionPageId, status: 'error', payload: { trigger }, error: txt.slice(0, 1000) });
       return;
     }
