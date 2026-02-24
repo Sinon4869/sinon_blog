@@ -324,7 +324,7 @@ body {
 .tiptap-btn {
   border: 1px solid var(--line-soft);
   background: #f8f7f3;
-  @apply rounded px-2 py-1 text-xs text-zinc-700 transition-all duration-200 hover:bg-zinc-100 active:scale-[0.98];
+  @apply rounded px-2.5 py-1.5 text-[12px] text-zinc-700 transition-all duration-200 hover:bg-zinc-100 active:scale-[0.98] sm:px-2 sm:py-1 sm:text-xs;
 }
 
 .tiptap-btn.is-active {
