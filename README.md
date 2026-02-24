@@ -6,8 +6,10 @@
 
 ```bash
 cd /data/sinon_blog
-npm install
+pnpm install --frozen-lockfile
 ```
+
+> 说明：本仓库统一使用 **pnpm**，不要混用 npm/yarn，避免 lockfile 漂移导致 CI 失败。
 
 ## 2) 配置环境变量
 
@@ -47,13 +49,13 @@ wrangler d1 execute --local --file=./d1/schema.sql
 ## 5) 本地预览（Workers 形态）
 
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ## 6) 部署
 
 ```bash
-npm run deploy
+pnpm deploy
 ```
 
 ## 7) CI Secrets 规范（P0）
