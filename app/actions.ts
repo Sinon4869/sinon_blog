@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SETTING_KEYS } from '@/lib/site-settings';
-import { buildPostPath, slugify } from '@/lib/utils';
+import { savePostWithTags } from '@/lib/post-service';
+import { buildPostPath } from '@/lib/utils';
 
 function makeInternalPostSlug() {
   return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -50,49 +51,19 @@ export async function savePost(formData: FormData) {
   const words = content.trim().split(/\s+/).filter(Boolean).length;
   const readingTime = Math.max(1, Math.round(words / 220));
 
-  const post = id
-    ? await prisma.post.update({
-        where: { id },
-        data: {
-          title,
-          excerpt,
-          content,
-          published,
-          publishedAt: published ? new Date() : null,
-          reading_time: readingTime,
-          seo_title: title.slice(0, 60),
-          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
-          cover_image: coverImage || null,
-          background_image: backgroundImage || null
-        }
-      })
-    : await prisma.post.create({
-        data: {
-          title,
-          slug: slug!,
-          excerpt,
-          content,
-          published,
-          publishedAt: published ? new Date() : null,
-          reading_time: readingTime,
-          seo_title: title.slice(0, 60),
-          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
-          cover_image: coverImage || null,
-          background_image: backgroundImage || null,
-          authorId: user.id
-        }
-      });
-
-  await prisma.postTag.deleteMany({ where: { postId: post.id } });
-  for (const tagName of tags) {
-    const tagSlug = slugify(tagName);
-    const tag = await prisma.tag.upsert({
-      where: { slug: tagSlug },
-      update: { name: tagName },
-      create: { name: tagName, slug: tagSlug }
-    });
-    await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
-  }
+  const post = await savePostWithTags({
+    id,
+    authorId: user.id,
+    title,
+    excerpt,
+    content,
+    published,
+    coverImage,
+    backgroundImage,
+    tags,
+    readingTime,
+    slug
+  });
 
   revalidatePath('/');
   revalidatePath('/dashboard');
@@ -233,7 +204,7 @@ export async function updatePassword(formData: FormData) {
 
   if (newPassword.length < 6) throw new Error('新密码至少6位');
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const dbUser = (await prisma.user.findUnique({ where: { id: user.id } })) as { password?: string | null } | null;
   if (!dbUser?.password) throw new Error('当前账号未设置密码，请使用第三方登录');
 
   const ok = await compare(currentPassword, dbUser.password);
@@ -252,7 +223,7 @@ export async function updateEmail(formData: FormData) {
 
   if (!newEmail || !newEmail.includes('@')) throw new Error('请输入有效邮箱');
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const dbUser = (await prisma.user.findUnique({ where: { id: user.id } })) as { email: string; password?: string | null } | null;
   if (!dbUser) throw new Error('用户不存在');
   if (dbUser.email === newEmail) throw new Error('新邮箱不能与当前邮箱相同');
 
@@ -272,7 +243,7 @@ export async function deleteMyAccount(formData: FormData) {
   const user = await requireUser();
   const confirmEmail = formData.get('confirmEmail')?.toString().trim().toLowerCase() ?? '';
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  const dbUser = (await prisma.user.findUnique({ where: { id: user.id } })) as { email: string } | null;
   if (!dbUser) throw new Error('用户不存在');
   if (confirmEmail !== dbUser.email.toLowerCase()) throw new Error('确认邮箱不匹配，已取消删除');
 

@@ -1,5 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Row = Record<string, any>;
+import { AppError, mapDbError } from '@/lib/db-errors';
+
+export type Row = Record<string, any>;
+export type UserRow = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: 'USER' | 'ADMIN';
+  disabled?: number | boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type PostRow = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  content: string;
+  published?: number | boolean;
+  authorId: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type AuditLogRow = {
+  id: string;
+  actor_user_id?: string | null;
+  target_user_id?: string | null;
+  action: string;
+  detail?: string | null;
+  created_at: string;
+};
 
 function cuidLike() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
@@ -26,9 +56,7 @@ async function getDB(): Promise<any> {
   }
 }
 
-async function one<T = Row>(sql: string, ...bindings: any[]): Promise<T | null> {
-  const db = await getDB();
-  if (!db) return null;
+async function oneOn<T = Row>(db: any, sql: string, ...bindings: any[]): Promise<T | null> {
   try {
     const rs = await db.prepare(sql).bind(...bindings).all();
     return (rs?.results?.[0] as T) ?? null;
@@ -37,9 +65,7 @@ async function one<T = Row>(sql: string, ...bindings: any[]): Promise<T | null> 
   }
 }
 
-async function many<T = Row>(sql: string, ...bindings: any[]): Promise<T[]> {
-  const db = await getDB();
-  if (!db) return [];
+async function manyOn<T = Row>(db: any, sql: string, ...bindings: any[]): Promise<T[]> {
   try {
     const rs = await db.prepare(sql).bind(...bindings).all();
     return (rs?.results as T[]) ?? [];
@@ -48,10 +74,30 @@ async function many<T = Row>(sql: string, ...bindings: any[]): Promise<T[]> {
   }
 }
 
+async function runOn(db: any, sql: string, ...bindings: any[]) {
+  try {
+    return await db.prepare(sql).bind(...bindings).run();
+  } catch (e) {
+    throw mapDbError(e);
+  }
+}
+
+async function one<T = Row>(sql: string, ...bindings: any[]): Promise<T | null> {
+  const db = await getDB();
+  if (!db) return null;
+  return oneOn<T>(db, sql, ...bindings);
+}
+
+async function many<T = Row>(sql: string, ...bindings: any[]): Promise<T[]> {
+  const db = await getDB();
+  if (!db) return [];
+  return manyOn<T>(db, sql, ...bindings);
+}
+
 async function run(sql: string, ...bindings: any[]) {
   const db = await getDB();
-  if (!db) throw new Error('Cloudflare D1 binding DB not found');
-  return db.prepare(sql).bind(...bindings).run();
+  if (!db) throw new AppError('DB_UNAVAILABLE', 'Cloudflare D1 binding DB not found');
+  return runOn(db, sql, ...bindings);
 }
 
 let settingsTableEnsured = false;
@@ -79,6 +125,23 @@ function toBool(v: any): boolean {
 }
 
 export const prisma = {
+  async transaction<T>(fn: (tx: { run: (sql: string, ...bindings: any[]) => Promise<any>; one: <R = Row>(sql: string, ...bindings: any[]) => Promise<R | null>; many: <R = Row>(sql: string, ...bindings: any[]) => Promise<R[]> }) => Promise<T>) {
+    const db = await getDB();
+    if (!db) throw new AppError('DB_UNAVAILABLE', 'Cloudflare D1 binding DB not found');
+    await runOn(db, 'BEGIN');
+    try {
+      const result = await fn({
+        run: (sql: string, ...bindings: any[]) => runOn(db, sql, ...bindings),
+        one: <R = Row>(sql: string, ...bindings: any[]) => oneOn<R>(db, sql, ...bindings),
+        many: <R = Row>(sql: string, ...bindings: any[]) => manyOn<R>(db, sql, ...bindings)
+      });
+      await runOn(db, 'COMMIT');
+      return result;
+    } catch (e) {
+      await runOn(db, 'ROLLBACK');
+      throw e;
+    }
+  },
   user: {
     async findUnique({ where }: any) {
       if (where?.id) return one('SELECT * FROM users WHERE id = ?', where.id);
