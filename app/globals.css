@@ -341,3 +341,64 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+@media (max-width: 768px) {
+  .mobile-reading {
+    font-size: 1.08rem;
+    line-height: 1.95;
+  }
+
+  .mobile-reading p {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    line-height: 1.95;
+  }
+
+  .mobile-reading h1,
+  .mobile-reading h2,
+  .mobile-reading h3 {
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    margin-top: 1.35em;
+    margin-bottom: 0.7em;
+  }
+
+  .mobile-reading ul,
+  .mobile-reading ol {
+    padding-left: 1.2rem;
+    margin-top: 0.9rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .mobile-reading li {
+    margin-top: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .mobile-reading blockquote {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.9rem 0.95rem;
+    border-left: 4px solid #b8c4b9;
+    background: #f7f7f4;
+    border-radius: 0.5rem;
+  }
+
+  .mobile-reading pre {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+    font-size: 0.86rem;
+    line-height: 1.65;
+  }
+
+  .mobile-reading table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+

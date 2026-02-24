@@ -9,7 +9,7 @@ export function MdxContent({ source }: { source: string }) {
 
   return (
     <article
-      className="prose prose-zinc max-w-none dark:prose-invert"
+      className="prose prose-zinc mobile-reading max-w-none dark:prose-invert"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
