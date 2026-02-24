@@ -3,6 +3,7 @@
 import { SmartImage } from '@/components/smart-image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -16,7 +17,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { createLowlight, common } from 'lowlight';
 import { marked } from 'marked';
 import { AppModal } from '@/components/app-modal';
-import { EditorToolbar } from '@/components/editor-toolbar';
+// toolbar removed in notion-only mode
 
 type WriteEditorProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -104,7 +105,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [codeLanguage, setCodeLanguage] = useState('plaintext');
   const [codeBackground, setCodeBackground] = useState('#151920');
   const [pinToolbar, setPinToolbar] = useState(true);
-  const [editorMode, setEditorMode] = useState<'classic' | 'notion'>('notion');
+  const editorMode = 'notion' as const;
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [toolbarDocked, setToolbarDocked] = useState(false);
@@ -526,48 +527,12 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
       </details>
 
       <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
-        <button
-          type="button"
-          className={`rounded-md px-3 py-1.5 text-sm ${editorMode === 'notion' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}
-          onClick={() => setEditorMode('notion')}
-        >
-          Notion-like
-        </button>
-        <button
-          type="button"
-          className={`rounded-md px-3 py-1.5 text-sm ${editorMode === 'classic' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}
-          onClick={() => setEditorMode('classic')}
-        >
-          Classic
-        </button>
-        <span className="text-xs text-zinc-500">支持粘贴图片自动上传</span>
+        <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white">Notion-like Editor</span>
+        <span className="text-xs text-zinc-500">已启用：Slash 命令 / 粘贴与拖拽图片上传 / TipTap 菜单</span>
       </div>
 
       <div ref={toolbarAnchorRef} className="h-px w-full" />
       <div ref={editorShellRef} className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        {editorMode === 'classic' && (
-          <EditorToolbar
-            editor={editor}
-            toolbarDocked={toolbarDocked}
-            pinToolbar={pinToolbar}
-            toolbarHeight={toolbarHeight}
-            toolbarLeft={toolbarLeft}
-            toolbarWidth={toolbarWidth}
-            toolbarRef={toolbarRef}
-            onTogglePin={() => setPinToolbar((v) => !v)}
-            onToggleInlineCode={toggleInlineCode}
-            onInsertCodeBlock={insertCodeBlock}
-            onAddOrEditLink={addOrEditLink}
-            onInlineImage={handleInlineImage}
-            fileRef={fileRef}
-            codeLanguage={codeLanguage}
-            setCodeLanguage={setCodeLanguage}
-            codeBackground={codeBackground}
-            setCodeBackground={setCodeBackground}
-            onApplyCodeBlockOptions={applyCodeBlockOptions}
-          />
-        )}
-
         <div className="relative z-0 min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
           {editorMode === 'notion' && (
             <div className="mb-3 flex items-center gap-2 text-xs">
@@ -594,7 +559,26 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
 
           <EditorContent editor={editor} />
 
-          {editorMode === 'notion' && slashOpen && (
+          <FloatingMenu editor={editor} className="rounded-lg border border-zinc-200 bg-white p-1 shadow">
+            <div className="flex flex-wrap gap-1">
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleBulletList().run()}>List</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleBlockquote().run()}>Quote</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => insertCodeBlock()}>Code</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => fileRef.current?.click()}>Image</button>
+            </div>
+          </FloatingMenu>
+
+          <BubbleMenu editor={editor} className="rounded-lg border border-zinc-200 bg-white p-1 shadow">
+            <div className="flex gap-1">
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+              <button type="button" className="rounded px-2 py-1 text-xs hover:bg-zinc-100" onClick={addOrEditLink}>Link</button>
+            </div>
+          </BubbleMenu>
+
+          {slashOpen && (
             <div className="absolute left-4 top-16 z-20 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg md:left-8">
               <input
                 value={slashQuery}
