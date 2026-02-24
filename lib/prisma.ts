@@ -124,6 +124,12 @@ function toBool(v: any): boolean {
   return Boolean(v);
 }
 
+function utcDayOffset(daysAgo: number) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
 export const prisma = {
   async transaction<T>(fn: (tx: { run: (sql: string, ...bindings: any[]) => Promise<any>; one: <R = Row>(sql: string, ...bindings: any[]) => Promise<R | null>; many: <R = Row>(sql: string, ...bindings: any[]) => Promise<R[]> }) => Promise<T>) {
     const db = await getDB();
@@ -535,6 +541,35 @@ export const prisma = {
     async findMany({ take }: any = {}) {
       const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 20';
       return many(`SELECT * FROM audit_logs ORDER BY created_at DESC${limit}`);
+    }
+  },
+  analytics: {
+    async recordVisit({ path, visitorId, viewedOn }: { path: string; visitorId: string; viewedOn: string }) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO page_view_events (id, path, visitor_id, viewed_on, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        path,
+        visitorId,
+        viewedOn
+      );
+      return { id, path, visitorId, viewedOn };
+    },
+    async summary() {
+      const today = utcDayOffset(0);
+      const sevenDayStart = utcDayOffset(6);
+
+      const [todayPv, todayUv, sevenPv, sevenUv] = await Promise.all([
+        one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on = ?', today),
+        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on = ?', today),
+        one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today),
+        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today)
+      ]);
+
+      return {
+        today: { pv: todayPv?.c ?? 0, uv: todayUv?.c ?? 0 },
+        sevenDays: { pv: sevenPv?.c ?? 0, uv: sevenUv?.c ?? 0 }
+      };
     }
   },
   setting: {

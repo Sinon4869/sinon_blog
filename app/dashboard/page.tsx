@@ -83,13 +83,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       : {})
   };
 
-  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting] = await Promise.all([
+  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting, analyticsSummary] = await Promise.all([
     prisma.post.findMany({ where: { authorId: session.user.id }, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     prisma.favorite.findMany({ where: { userId: session.user.id } }),
     isAdmin ? prisma.setting.get('site_title') : Promise.resolve(null),
-    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null)
+    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null),
+    prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } }))
   ]);
 
   const allMine = (allMineRaw as PostItem[]) || [];
@@ -119,7 +120,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <p className="text-xs text-zinc-500">文章总数</p>
           <p className="mt-1 text-3xl font-semibold text-zinc-800">{allMine.length}</p>
@@ -133,6 +134,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-3xl font-semibold text-zinc-800">
             {draftCount} / {favorites.length}
           </p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-zinc-500">访客统计（初版）</p>
+          <p className="mt-1 text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
+          <p className="mt-1 text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
         </div>
       </section>
 
