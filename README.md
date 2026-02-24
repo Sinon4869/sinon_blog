@@ -93,3 +93,20 @@ wrangler d1 list
 - 每次新增 migration 同步补充对应的 rollback SQL 脚本
 - 变更后运行 smoke test：`/`、`/login`、`/api/auth/signin/google`
 
+### 回滚命令模板（脚本化）
+
+```bash
+# 1) 回滚到上一个已知可用版本（示例）
+# 先在 Cloudflare Dashboard 选择上一个 Worker Version 回退
+
+# 2) 核验 prod DB 关键列与迁移记录
+pnpm exec wrangler d1 execute DB --remote --command "PRAGMA table_info(users);"
+pnpm exec wrangler d1 execute DB --remote --command "SELECT migration_name, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 20;"
+
+# 3) 核验 dev DB 关键列与迁移记录
+pnpm exec wrangler d1 execute DB --env dev --remote --command "PRAGMA table_info(users);"
+pnpm exec wrangler d1 execute DB --env dev --remote --command "SELECT migration_name, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 20;"
+```
+
+> 注意：数据库反向迁移必须先在 dev 演练并备份。
+

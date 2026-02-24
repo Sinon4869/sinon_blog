@@ -43,6 +43,16 @@ jobs:
       - name: Install dependencies (deterministic)
         run: pnpm install --frozen-lockfile
 
+      - name: Dependency integrity guard
+        run: |
+          set -e
+          test -f pnpm-lock.yaml || (echo "pnpm-lock.yaml missing" && exit 1)
+          test ! -f package-lock.json || (echo "package-lock.json should not exist" && exit 1)
+          grep -q '"packageManager": "pnpm@' package.json || (echo "packageManager must be pnpm" && exit 1)
+
+      - name: Build route integrity check
+        run: pnpm build
+
       - name: Validate Cloudflare secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -170,9 +180,23 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           set -e
-          curl -fsS https://sinon.live/ >/dev/null
-          curl -fsS https://sinon.live/login >/dev/null
-          curl -fsSI https://sinon.live/api/auth/signin/google | head -n 1 | grep -qE "HTTP/[0-9.]+ (200|302)"
+          check_url() {
+            url="$1"
+            ok_regex="$2"
+            code=$(curl -sS -o /tmp/smoke_body.txt -w "%{http_code}" "$url" || true)
+            echo "smoke $url => HTTP $code"
+            if ! echo "$code" | grep -Eq "$ok_regex"; then
+              echo "unexpected status for $url: $code"
+              echo "--- response body (first 20 lines) ---"
+              sed -n '1,20p' /tmp/smoke_body.txt || true
+              exit 1
+            fi
+          }
+          check_url "https://sinon.live/" "^(200|301|302)$"
+          check_url "https://sinon.live/login" "^(200|301|302)$"
+          check_url "https://sinon.live/write" "^(200|301|302)$"
+          check_url "https://sinon.live/write/preview" "^(200|301|302)$"
+          check_url "https://sinon.live/api/auth/signin/google" "^(200|302)$"
 
       - name: Migration guard (dev)
         if: github.ref == 'refs/heads/dev'
@@ -212,5 +236,20 @@ jobs:
           fi
           check_url "https://dev.sinon.live/" "^(200|301|302)$"
           check_url "https://dev.sinon.live/login" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/write" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/write/preview" "^(200|301|302)$"
           # Google OAuth endpoint may return 400 when provider env is not configured in dev.
           check_url "https://dev.sinon.live/api/auth/signin/google" "^(200|302|400)$"
+
+      - name: Failure debug context
+        if: failure()
+        run: |
+          echo "branch=${GITHUB_REF} sha=${GITHUB_SHA}"
+          node -v
+          pnpm -v
+          echo "last 5 commits:"
+          git log --oneline -5 || true
+          echo "migration files:"
+          ls -1 d1/migrations || true
+          echo "wrangler env check:"
+          test -f wrangler.jsonc && sed -n '1,120p' wrangler.jsonc || true
