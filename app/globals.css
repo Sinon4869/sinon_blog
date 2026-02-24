@@ -409,20 +409,45 @@ body {
     line-height: 1.65;
   }
 
-  .mobile-reading table {
-    display: table;
+  .mobile-reading table,
+  .mobile-reading thead,
+  .mobile-reading tbody,
+  .mobile-reading tr,
+  .mobile-reading th,
+  .mobile-reading td {
+    display: block;
     width: 100%;
-    table-layout: fixed;
-    white-space: normal;
+  }
+
+  .mobile-reading table {
+    border: 0;
     font-size: 0.9rem;
+  }
+
+  .mobile-reading thead {
+    display: none;
+  }
+
+  .mobile-reading tr {
+    margin-bottom: 0.7rem;
+    border: 1px solid #d6d2c7;
+    border-radius: 0.6rem;
+    background: #fff;
+    overflow: hidden;
   }
 
   .mobile-reading th,
   .mobile-reading td {
+    border: 0;
+    border-bottom: 1px solid #ece8de;
     white-space: normal;
-    word-break: break-word;
+    word-break: break-all;
     overflow-wrap: anywhere;
-    padding: 0.45rem 0.4rem;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .mobile-reading tr > *:last-child {
+    border-bottom: 0;
   }
 
   .mobile-reading img,
