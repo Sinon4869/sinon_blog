@@ -351,3 +351,61 @@ export async function consumePendingNotionEvents(limit = 20) {
 
   return { total: events.length, applied, conflicted, failed };
 }
+
+type ConflictRow = {
+  post_id: string;
+  notion_page_id: string;
+  last_error?: string | null;
+  updated_at?: string | null;
+};
+
+export async function listSyncConflicts(limit = 50) {
+  await ensureSyncTables();
+  let rows: ConflictRow[] = [];
+  await prisma.transaction(async (tx) => {
+    rows = await tx.many<ConflictRow>(
+      `SELECT post_id, notion_page_id, last_error, updated_at
+       FROM sync_map
+       WHERE sync_state = 'conflict'
+       ORDER BY updated_at DESC
+       LIMIT ?`,
+      limit
+    );
+  });
+
+  const out: Array<ConflictRow & { post?: { id: string; title: string; updatedAt?: Date | null } | null }> = [];
+  for (const row of rows) {
+    const post = await prisma.post.findUnique({ where: { id: row.post_id }, select: { id: true, title: true, updatedAt: true } });
+    out.push({ ...row, post: post as any });
+  }
+  return out;
+}
+
+export async function resolveSyncConflict(postId: string, keep: 'blog' | 'notion') {
+  await ensureSyncTables();
+
+  const mapping = await getMapByPostId(postId);
+  if (!mapping) throw new Error('sync mapping not found');
+
+  if (keep === 'blog') {
+    await syncPostToNotion(postId, 'save');
+    await prisma.transaction(async (tx) => {
+      await tx.run(`UPDATE sync_map SET sync_state = 'ok', last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE post_id = ?`, postId);
+    });
+    return { ok: true, action: 'blog_pushed' as const };
+  }
+
+  await prisma.transaction(async (tx) => {
+    await tx.run(
+      `INSERT INTO sync_events (id, direction, post_id, notion_page_id, status, payload_json, error, retry_count)
+       VALUES (?, 'notion_to_blog', ?, ?, 'pending', ?, NULL, 0)`,
+      cuidLike(),
+      postId,
+      mapping.notion_page_id,
+      JSON.stringify({ id: mapping.notion_page_id, data: { id: mapping.notion_page_id, properties: {} } })
+    );
+    await tx.run(`UPDATE sync_map SET sync_state = 'pending', last_error = 'manual_resolve_keep_notion', updated_at = CURRENT_TIMESTAMP WHERE post_id = ?`, postId);
+  });
+
+  return { ok: true, action: 'notion_queued' as const };
+}
