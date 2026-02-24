@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { SmartImage } from '@/components/smart-image';
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -148,8 +149,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {featured && (
         <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/65 sm:grid sm:grid-cols-[1.1fr_1.2fr]">
           {featured.cover_image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={featured.cover_image} alt={featured.title} className="h-56 w-full object-cover sm:h-full" />
+            <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-full" />
           ) : (
             <div className="h-56 bg-zinc-200 sm:h-full" />
           )}

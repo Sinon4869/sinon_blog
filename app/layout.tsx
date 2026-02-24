@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 import { Navbar } from '@/components/navbar';
+import { WebVitalsReporter } from '@/components/web-vitals-reporter';
 
 function resolveMetadataBase() {
   const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN">
       <body>
+        <WebVitalsReporter />
         <Navbar />
         <main className="container-page">{children}</main>
       </body>

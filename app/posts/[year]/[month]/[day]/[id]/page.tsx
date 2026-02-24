@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { SmartImage } from '@/components/smart-image';
 import type { Metadata } from 'next';
 import type { Route } from 'next';
 import { notFound, redirect } from 'next/navigation';
@@ -128,8 +129,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
       <section className="relative overflow-hidden rounded-3xl border border-[var(--line-soft)] bg-[linear-gradient(140deg,#f7f6f2_0%,#ece8df_55%,#e4ded3_100%)]">
         {(post as any).background_image && (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={(post as any).background_image} alt={post.title} className="absolute inset-0 h-full w-full object-cover opacity-20" />
+            <SmartImage src={(post as any).background_image} alt={post.title} width={1400} height={600} className="absolute inset-0 h-full w-full object-cover opacity-20" />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.55),rgba(247,246,242,0.94))]" />
           </>
         )}
@@ -138,8 +138,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
           <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-end">
             <div className="overflow-hidden rounded-2xl border border-white/70 bg-zinc-200/60 shadow-sm">
               {(post as any).cover_image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={(post as any).cover_image} alt={post.title} className="h-64 w-full object-cover sm:h-72 lg:h-[360px]" />
+                <SmartImage src={(post as any).cover_image} alt={post.title} width={960} height={640} className="h-64 w-full object-cover sm:h-72 lg:h-[360px]" />
               ) : (
                 <div className="flex h-64 items-end p-4 text-xs tracking-[0.2em] text-zinc-500 sm:h-72 lg:h-[360px]">KOMOREBI</div>
               )}
@@ -231,8 +230,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
                 {post.author.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.author.image} alt={post.author.name || post.author.email} className="h-full w-full object-cover" />
+                  <SmartImage src={post.author.image} alt={post.author.name || post.author.email} width={64} height={64} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-lg text-zinc-600">
                     {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}

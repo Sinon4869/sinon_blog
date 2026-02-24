@@ -1,5 +1,6 @@
 'use client';
 
+import { SmartImage } from '@/components/smart-image';
 import { useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -340,7 +341,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 p-3 sm:grid sm:grid-cols-[320px_1fr] sm:gap-6">
           {coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverImage} alt="cover-preview" className="h-56 w-full rounded-lg object-cover sm:h-[260px]" />
+            <SmartImage src={coverImage} alt="cover-preview" width={1200} height={560} className="h-56 w-full rounded-lg object-cover sm:h-[260px]" />
           ) : (
             <div className="h-56 w-full rounded-lg bg-zinc-200 sm:h-[260px]" />
           )}
@@ -374,7 +375,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900">
           {backgroundImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={backgroundImage} alt="background-preview" className="h-40 w-full object-cover opacity-70 sm:h-52" />
+            <SmartImage src={backgroundImage} alt="background-preview" width={1200} height={420} className="h-40 w-full object-cover opacity-70 sm:h-52" />
           ) : (
             <div className="h-40 w-full bg-zinc-800 sm:h-52" />
           )}

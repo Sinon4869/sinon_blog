@@ -1,5 +1,6 @@
 'use client';
 
+import { SmartImage } from '@/components/smart-image';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
@@ -75,12 +76,12 @@ export function WritePreviewClient({ draftRaw }: { draftRaw: string }) {
         </div>
       </div>
 
-      {draft.backgroundImage && <img src={draft.backgroundImage} alt="bg" className="h-56 w-full rounded-xl object-cover" />}
+      {draft.backgroundImage && <SmartImage src={draft.backgroundImage} alt="bg" width={1200} height={560} className="h-56 w-full rounded-xl object-cover" />}
 
       <article className="card space-y-3">
         <h2 className="text-3xl font-bold">{draft.title || '未命名标题'}</h2>
         {draft.excerpt && <p className="text-zinc-600">{draft.excerpt}</p>}
-        {draft.coverImage && <img src={draft.coverImage} alt="cover" className="h-56 w-full rounded-xl object-cover" />}
+        {draft.coverImage && <SmartImage src={draft.coverImage} alt="cover" width={1200} height={560} className="h-56 w-full rounded-xl object-cover" />}
         <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.content || '') }} />
       </article>
     </div>
