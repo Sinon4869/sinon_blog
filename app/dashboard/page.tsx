@@ -172,7 +172,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       )}
 
       <section className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/60">
-        <div className="overflow-x-auto">
+        <div className="space-y-3 p-3 md:hidden">
+          {pagePosts.length === 0 && <div className="rounded-xl border border-[var(--line-soft)] bg-white p-4 text-sm text-zinc-500">暂无匹配文章</div>}
+          {pagePosts.map((post) => (
+            <article key={post.id} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-zinc-800">{post.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{post.excerpt || '暂无摘要'}</p>
+                </div>
+                <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs ${post.published ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-700'}`}>
+                  {post.published ? '已发布' : '草稿'}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">更新于：{formatDate(post.updatedAt || post.createdAt)}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Link href={buildPostPath(post) as Route} className="rounded border border-[var(--line-strong)] px-2 py-2 text-center text-xs hover:bg-zinc-100">
+                  查看
+                </Link>
+                <Link href={`/write?id=${post.id}`} className="rounded border border-[var(--line-strong)] px-2 py-2 text-center text-xs hover:bg-zinc-100">
+                  编辑
+                </Link>
+                <form action={setPostPublished}>
+                  <input type="hidden" name="id" value={post.id} />
+                  <input type="hidden" name="nextPublished" value={post.published ? '0' : '1'} />
+                  <ConfirmSubmitButton
+                    confirmText={post.published ? '确认将该文章转为草稿？' : '确认发布该文章？'}
+                    className="w-full rounded border border-[var(--line-strong)] px-2 py-2 text-xs hover:bg-zinc-100"
+                  >
+                    {post.published ? '转草稿' : '发布'}
+                  </ConfirmSubmitButton>
+                </form>
+                <form action={deletePost}>
+                  <input type="hidden" name="id" value={post.id} />
+                  <ConfirmSubmitButton confirmText="确认删除该文章？此操作不可恢复。" className="w-full rounded border border-red-300 px-2 py-2 text-xs text-red-700 hover:bg-red-50">
+                    删除
+                  </ConfirmSubmitButton>
+                </form>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full text-sm">
             <thead className="border-b border-[var(--line-soft)] bg-white/40 text-zinc-600">
               <tr>
@@ -197,7 +239,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{post.excerpt || '暂无摘要'}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs ${post.published ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-700'}`}>
+                    <span className={`whitespace-nowrap rounded-full px-2 py-1 text-xs ${post.published ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-700'}`}>
                       {post.published ? '已发布' : '草稿'}
                     </span>
                   </td>
