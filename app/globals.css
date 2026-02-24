@@ -195,6 +195,23 @@ body {
   font-size: 18px;
 }
 
+.notion-like-content {
+  max-width: 680px;
+  line-height: 1.85;
+  font-size: 1.05rem;
+}
+
+.notion-like-content p {
+  margin: 0.9rem 0;
+}
+
+.notion-like-content h1,
+.notion-like-content h2,
+.notion-like-content h3 {
+  margin-top: 1.2em;
+  margin-bottom: 0.55em;
+}
+
 .simple-editor-content code:not(pre code) {
   background: rgba(209, 206, 196, 0.5);
   color: #2f3a47;

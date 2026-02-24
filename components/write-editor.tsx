@@ -97,6 +97,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [codeLanguage, setCodeLanguage] = useState('plaintext');
   const [codeBackground, setCodeBackground] = useState('#151920');
   const [pinToolbar, setPinToolbar] = useState(true);
+  const [editorMode, setEditorMode] = useState<'classic' | 'notion'>('notion');
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [toolbarDocked, setToolbarDocked] = useState(false);
@@ -132,7 +133,27 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'simple-editor-content'
+        class: `simple-editor-content ${editorMode === 'notion' ? 'notion-like-content' : ''}`
+      },
+      handleDOMEvents: {
+        paste: (_view, event) => {
+          const e = event as ClipboardEvent;
+          const files = Array.from(e.clipboardData?.files || []);
+          const image = files.find((f) => f.type.startsWith('image/'));
+          if (!image) return false;
+
+          e.preventDefault();
+          setUploading(true);
+          uploadToR2(image)
+            .then((url) => {
+              editor?.chain().focus().setImage({ src: url, alt: image.name || 'pasted-image' }).run();
+            })
+            .catch((err) => {
+              setFeedback(err instanceof Error ? err.message : '粘贴图片上传失败');
+            })
+            .finally(() => setUploading(false));
+          return true;
+        }
       }
     }
   });
@@ -386,28 +407,48 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         </div>
       </details>
 
+      <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
+        <button
+          type="button"
+          className={`rounded-md px-3 py-1.5 text-sm ${editorMode === 'notion' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}
+          onClick={() => setEditorMode('notion')}
+        >
+          Notion-like
+        </button>
+        <button
+          type="button"
+          className={`rounded-md px-3 py-1.5 text-sm ${editorMode === 'classic' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}
+          onClick={() => setEditorMode('classic')}
+        >
+          Classic
+        </button>
+        <span className="text-xs text-zinc-500">支持粘贴图片自动上传</span>
+      </div>
+
       <div ref={toolbarAnchorRef} className="h-px w-full" />
       <div ref={editorShellRef} className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <EditorToolbar
-          editor={editor}
-          toolbarDocked={toolbarDocked}
-          pinToolbar={pinToolbar}
-          toolbarHeight={toolbarHeight}
-          toolbarLeft={toolbarLeft}
-          toolbarWidth={toolbarWidth}
-          toolbarRef={toolbarRef}
-          onTogglePin={() => setPinToolbar((v) => !v)}
-          onToggleInlineCode={toggleInlineCode}
-          onInsertCodeBlock={insertCodeBlock}
-          onAddOrEditLink={addOrEditLink}
-          onInlineImage={handleInlineImage}
-          fileRef={fileRef}
-          codeLanguage={codeLanguage}
-          setCodeLanguage={setCodeLanguage}
-          codeBackground={codeBackground}
-          setCodeBackground={setCodeBackground}
-          onApplyCodeBlockOptions={applyCodeBlockOptions}
-        />
+        {editorMode === 'classic' && (
+          <EditorToolbar
+            editor={editor}
+            toolbarDocked={toolbarDocked}
+            pinToolbar={pinToolbar}
+            toolbarHeight={toolbarHeight}
+            toolbarLeft={toolbarLeft}
+            toolbarWidth={toolbarWidth}
+            toolbarRef={toolbarRef}
+            onTogglePin={() => setPinToolbar((v) => !v)}
+            onToggleInlineCode={toggleInlineCode}
+            onInsertCodeBlock={insertCodeBlock}
+            onAddOrEditLink={addOrEditLink}
+            onInlineImage={handleInlineImage}
+            fileRef={fileRef}
+            codeLanguage={codeLanguage}
+            setCodeLanguage={setCodeLanguage}
+            codeBackground={codeBackground}
+            setCodeBackground={setCodeBackground}
+            onApplyCodeBlockOptions={applyCodeBlockOptions}
+          />
+        )}
 
         <div className="relative z-0 min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
           <EditorContent editor={editor} />
