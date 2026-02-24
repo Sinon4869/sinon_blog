@@ -50,6 +50,19 @@ function estimateReadingTime(text: string) {
   return { words, minutes };
 }
 
+function hasMeaningfulHtmlContent(input: string) {
+  const plain = input
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (plain.length > 0) return true;
+  return /<(img|video|audio|iframe|table|hr)\b/i.test(input);
+}
+
 function todayLabel() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -151,7 +164,7 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
 
   function openPublishPreview() {
     const titleValue = title.trim();
-    if (!titleValue || !contentHtml || contentHtml === '<p></p>') {
+    if (!titleValue || !hasMeaningfulHtmlContent(contentHtml)) {
       alert('请先填写标题与正文内容');
       return;
     }
