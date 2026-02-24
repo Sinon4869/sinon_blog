@@ -238,7 +238,6 @@ jobs:
           check_url "https://dev.sinon.live/login" "^(200|301|302)$"
           check_url "https://dev.sinon.live/write" "^(200|301|302)$"
           check_url "https://dev.sinon.live/write/preview" "^(200|301|302)$"
-          # Google OAuth endpoint may return 400 when provider env is not configured in dev.
           check_url "https://dev.sinon.live/api/auth/signin/google" "^(200|302|400)$"
 
       - name: Failure debug context
