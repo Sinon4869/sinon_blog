@@ -140,3 +140,79 @@ pnpm exec wrangler d1 execute DB --env dev --remote --command "SELECT migration_
 
 > 注意：数据库反向迁移必须先在 dev 演练并备份。
 
+## 12) Notion 双向同步与备份运行手册
+
+### 环境变量
+
+在 `.env` / Cloudflare 环境中设置：
+
+- `NOTION_TOKEN`：Notion Integration Token
+- `NOTION_DATABASE_ID`：同步目标数据库 ID
+- `NOTION_SYNC_TOKEN`：消费接口鉴权 Token（用于 `/api/notion/consume`）
+
+### 数据表
+
+- `sync_map`：博客文章与 Notion 页面映射（含 sync_state/hash）
+- `sync_events`：同步事件池（pending/ok/error）
+
+迁移文件：
+- `d1/migrations/202602241945__add_notion_sync_tables.sql`
+
+### 同步链路
+
+1. **Blog -> Notion（自动触发）**
+   - 触发点：保存文章、发布、切换发布状态、删除归档
+   - 逻辑位置：`lib/notion-sync.ts` + `app/actions.ts` + `app/api/write/publish/route.ts`
+
+2. **Notion -> Blog（Webhook + 消费）**
+   - Webhook 落库：`POST /api/notion/webhook`
+   - 事件消费：`POST /api/notion/consume`
+     - Header：`x-sync-token: <NOTION_SYNC_TOKEN>`
+     - Body 可选：`{ "limit": 20 }`
+
+### 冲突治理
+
+- 查询冲突（管理员）：`GET /api/admin/sync/conflicts`
+- 手动解决（管理员）：`POST /api/admin/sync/conflicts`
+
+请求体：
+
+```json
+{ "postId": "<post-id>", "keep": "blog" }
+```
+
+或
+
+```json
+{ "postId": "<post-id>", "keep": "notion" }
+```
+
+### 备份与恢复（R2）
+
+- 手动备份（管理员）：`POST /api/admin/backup/posts`
+  - 默认 `action=backup`
+- 列出备份（管理员）：`GET /api/admin/backup/posts?limit=20`
+- 恢复备份（管理员）：`POST /api/admin/backup/posts`
+
+请求体（恢复）：
+
+```json
+{ "action": "restore", "key": "backups/posts/YYYY-MM-DD/snapshot-xxx.json" }
+```
+
+### 故障排查顺序
+
+1. 检查 `NOTION_TOKEN` / `NOTION_DATABASE_ID` / `NOTION_SYNC_TOKEN`
+2. 查 `sync_events` 中 `error` 与 `retry_count`
+3. 查 `sync_map.sync_state` 是否 `conflict`
+4. 用冲突 API 手动决策 `keep=blog|notion`
+5. 必要时从 R2 指定快照恢复
+
+### 回归清单
+
+- [ ] 保存文章后 Notion 自动创建/更新 page
+- [ ] Notion webhook 入库成功（`sync_events` 有 pending）
+- [ ] consume 后事件转为 ok / error（可追踪）
+- [ ] conflict 能被识别并可人工处理
+- [ ] 备份可生成、可列出、可从 key 恢复
+
