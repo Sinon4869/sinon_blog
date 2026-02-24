@@ -19,6 +19,25 @@ function makeInternalPostSlug() {
   return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function htmlToPlainText(input: string) {
+  return input
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasMeaningfulHtmlContent(input: string) {
+  const plain = htmlToPlainText(input);
+  if (plain.length > 0) return true;
+  return /<(img|video|audio|iframe|table|hr)\b/i.test(input);
+}
+
 async function requireUser() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error('请先登录');
@@ -42,7 +61,7 @@ export async function savePost(formData: FormData) {
   const backgroundImage = sanitizeText(formData.get('backgroundImage')?.toString().trim() ?? '', 2000);
   const published = formData.get('published') === 'on';
 
-  if (!title || !content) throw new Error('标题与内容不能为空');
+  if (!title || !hasMeaningfulHtmlContent(content)) throw new Error('标题与内容不能为空');
 
   const slug = id ? undefined : makeInternalPostSlug();
 
@@ -51,7 +70,9 @@ export async function savePost(formData: FormData) {
     .map((i) => i.trim())
     .filter(Boolean);
 
-  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const words = htmlToPlainText(content)
+    .split(/\s+/)
+    .filter(Boolean).length;
   const readingTime = Math.max(1, Math.round(words / 220));
 
   const post = await savePostWithTags({

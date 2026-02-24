@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type NavTag = { id: string; name: string; slug: string };
 type SessionData = { id: string; role: string } | null;
@@ -24,6 +24,9 @@ export function NavbarClient({
   const pathname = usePathname();
   const [hidden, setHidden] = useState(false);
   const [compact, setCompact] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'articles' | 'account' | null>(null);
+  const articlesRef = useRef<HTMLDetailsElement | null>(null);
+  const accountRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
     let lastY = window.scrollY;
@@ -43,6 +46,29 @@ export function NavbarClient({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      const inArticles = articlesRef.current?.contains(target);
+      const inAccount = accountRef.current?.contains(target);
+      if (!inArticles && !inAccount) setOpenMenu(null);
+    };
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    setOpenMenu(null);
+  }, [pathname]);
 
   const navLink = (href: string) =>
     `rounded-md px-2.5 py-1.5 transition-all duration-300 hover:bg-white/80 hover:text-zinc-900 active:scale-[0.98] ${
@@ -68,14 +94,27 @@ export function NavbarClient({
           <Link href="/" className={navLink('/')}>
             首页
           </Link>
-          <details className="group relative">
-            <summary className={navLink('/articles') + ' list-none cursor-pointer'}>文章</summary>
+          <details ref={articlesRef} open={openMenu === 'articles'} className="group relative">
+            <summary
+              className={navLink('/articles') + ' list-none cursor-pointer'}
+              onClick={(e) => {
+                e.preventDefault();
+                setOpenMenu((prev) => (prev === 'articles' ? null : 'articles'));
+              }}
+            >
+              文章
+            </summary>
             <div className="absolute right-0 top-10 min-w-48 rounded-xl border border-[var(--line-soft)] bg-[#f8f7f3]/95 p-2 shadow-lg backdrop-blur">
-              <Link href="/" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100">
+              <Link href="/" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
                 全部文章
               </Link>
               {tags.map((t) => (
-                <Link key={t.id} href={`/?tag=${encodeURIComponent(t.slug)}`} className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100">
+                <Link
+                  key={t.id}
+                  href={`/?tag=${encodeURIComponent(t.slug)}`}
+                  className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100"
+                  onClick={() => setOpenMenu(null)}
+                >
                   #{t.name}
                 </Link>
               ))}
@@ -90,17 +129,25 @@ export function NavbarClient({
               <Link href="/write/new" className={navLink('/write')}>
                 写文章
               </Link>
-              <details className="group relative">
-                <summary className={navLink('/account') + ' list-none cursor-pointer'}>我的</summary>
+              <details ref={accountRef} open={openMenu === 'account'} className="group relative">
+                <summary
+                  className={navLink('/account') + ' list-none cursor-pointer'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setOpenMenu((prev) => (prev === 'account' ? null : 'account'));
+                  }}
+                >
+                  我的
+                </summary>
                 <div className="absolute right-0 top-10 min-w-40 rounded-xl border border-[var(--line-soft)] bg-[#f8f7f3]/95 p-2 shadow-lg backdrop-blur">
-                  <Link href={`/profile/${session.id}`} className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100">
+                  <Link href={`/profile/${session.id}`} className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
                     个人资料
                   </Link>
-                  <Link href="/account" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100">
+                  <Link href="/account" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
                     账户设置
                   </Link>
                   {session.role === 'ADMIN' && (
-                    <Link href="/admin" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100">
+                    <Link href="/admin" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
                       后台管理
                     </Link>
                   )}
