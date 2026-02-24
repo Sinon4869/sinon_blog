@@ -50,7 +50,7 @@ export function NavbarClient({
     }`;
 
   return (
-    <header className="sticky top-0 z-40 w-full overflow-x-clip px-3 pt-[max(env(safe-area-inset-top),10px)] sm:px-5">
+    <header className="sticky top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),10px)] sm:px-5">
       <div
         className={`mx-auto flex w-full max-w-[1400px] items-center justify-between rounded-2xl border border-[var(--line-soft)] bg-[rgba(247,246,242,0.82)] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] transition-all duration-300 backdrop-blur-xl ${
           hidden ? '-translate-y-24 opacity-0' : 'translate-y-0 opacity-100'
