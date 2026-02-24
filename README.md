@@ -1,5 +1,7 @@
 # Komorebi
 
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
 A modern blog system built on **Next.js + Cloudflare Workers**, with **D1 / R2 / KV** as core infrastructure.
 
 > Production-style architecture, editor-first workflow, and built-in Notion bidirectional sync + backup.
