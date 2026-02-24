@@ -1,41 +1,142 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { AppError, mapDbError } from '@/lib/db-errors';
 
-type Row = Record<string, any>;
+export type Row = Record<string, any>;
+export type UserRow = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: 'USER' | 'ADMIN';
+  disabled?: number | boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type PostRow = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  content: string;
+  published?: number | boolean;
+  authorId: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type AuditLogRow = {
+  id: string;
+  actor_user_id?: string | null;
+  target_user_id?: string | null;
+  action: string;
+  detail?: string | null;
+  created_at: string;
+};
 
 function cuidLike() {
   return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
 async function getDB(): Promise<any> {
-  const ctx = await getCloudflareContext({ async: true });
-  const db = (ctx?.env as any)?.DB;
-  if (!db) throw new Error('Cloudflare D1 binding DB not found');
-  return db;
+  let getCloudflareContextFn: ((opts: { async: boolean }) => Promise<any>) | null = null;
+  try {
+    const mod = (await import('@opennextjs/cloudflare')) as { getCloudflareContext?: (opts: { async: boolean }) => Promise<any> };
+    if (typeof mod.getCloudflareContext === 'function') getCloudflareContextFn = mod.getCloudflareContext;
+  } catch {}
+  if (!getCloudflareContextFn) {
+    try {
+      const fallback = (globalThis as any).getCloudflareContext;
+      if (typeof fallback === 'function') getCloudflareContextFn = fallback;
+    } catch {}
+  }
+  if (!getCloudflareContextFn) return null;
+  try {
+    const ctx = await getCloudflareContextFn({ async: true });
+    return (ctx?.env as any)?.DB ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function oneOn<T = Row>(db: any, sql: string, ...bindings: any[]): Promise<T | null> {
+  try {
+    const rs = await db.prepare(sql).bind(...bindings).all();
+    return (rs?.results?.[0] as T) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function manyOn<T = Row>(db: any, sql: string, ...bindings: any[]): Promise<T[]> {
+  try {
+    const rs = await db.prepare(sql).bind(...bindings).all();
+    return (rs?.results as T[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function runOn(db: any, sql: string, ...bindings: any[]) {
+  try {
+    return await db.prepare(sql).bind(...bindings).run();
+  } catch (e) {
+    throw mapDbError(e);
+  }
 }
 
 async function one<T = Row>(sql: string, ...bindings: any[]): Promise<T | null> {
   const db = await getDB();
-  const rs = await db.prepare(sql).bind(...bindings).all();
-  return (rs?.results?.[0] as T) ?? null;
+  if (!db) return null;
+  return oneOn<T>(db, sql, ...bindings);
 }
 
 async function many<T = Row>(sql: string, ...bindings: any[]): Promise<T[]> {
   const db = await getDB();
-  const rs = await db.prepare(sql).bind(...bindings).all();
-  return (rs?.results as T[]) ?? [];
+  if (!db) return [];
+  return manyOn<T>(db, sql, ...bindings);
 }
 
 async function run(sql: string, ...bindings: any[]) {
   const db = await getDB();
-  return db.prepare(sql).bind(...bindings).run();
+  if (!db) throw new AppError('DB_UNAVAILABLE', 'Cloudflare D1 binding DB not found');
+  return runOn(db, sql, ...bindings);
+}
+
+let settingsTableEnsured = false;
+async function ensureSettingsTable() {
+  if (settingsTableEnsured) return;
+  await run(
+    'CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
+  );
+  settingsTableEnsured = true;
 }
 
 function toDate(v: any): Date | null {
   return v ? new Date(v) : null;
 }
 
+function toBool(v: any): boolean {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0 || v == null) return false;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === '1' || s === 'true' || s === 'yes') return true;
+    if (s === '0' || s === 'false' || s === 'no' || s === '') return false;
+  }
+  return Boolean(v);
+}
+
 export const prisma = {
+  async transaction<T>(fn: (tx: { run: (sql: string, ...bindings: any[]) => Promise<any>; one: <R = Row>(sql: string, ...bindings: any[]) => Promise<R | null>; many: <R = Row>(sql: string, ...bindings: any[]) => Promise<R[]> }) => Promise<T>) {
+    const db = await getDB();
+    if (!db) throw new AppError('DB_UNAVAILABLE', 'Cloudflare D1 binding DB not found');
+
+    // D1 在当前运行模型中禁止手动 BEGIN/COMMIT/ROLLBACK。
+    // 这里提供“同连接顺序执行”的事务接口语义，避免触发 D1_ERROR。
+    return fn({
+      run: (sql: string, ...bindings: any[]) => runOn(db, sql, ...bindings),
+      one: <R = Row>(sql: string, ...bindings: any[]) => oneOn<R>(db, sql, ...bindings),
+      many: <R = Row>(sql: string, ...bindings: any[]) => manyOn<R>(db, sql, ...bindings)
+    });
+  },
   user: {
     async findUnique({ where }: any) {
       if (where?.id) return one('SELECT * FROM users WHERE id = ?', where.id);
@@ -137,8 +238,20 @@ export const prisma = {
       if (!key[1]) return null;
       const post0 = (await one(`SELECT * FROM posts WHERE ${key[0]} = ?`, key[1])) as any;
       if (!post0) return null;
-      const post: any = { ...post0, published: !!post0.published, createdAt: toDate(post0.createdAt), updatedAt: toDate(post0.updatedAt), publishedAt: toDate(post0.publishedAt) };
-      if (select?.slug) return { slug: post.slug };
+      const post: any = {
+        ...post0,
+        published: toBool(post0.published),
+        createdAt: toDate(post0.createdAt),
+        updatedAt: toDate(post0.updatedAt),
+        publishedAt: toDate(post0.publishedAt)
+      };
+      if (select) {
+        const out: any = {};
+        for (const key of Object.keys(select)) {
+          if (select[key]) out[key] = post[key];
+        }
+        return out;
+      }
       if (include?.author) post.author = await one('SELECT * FROM users WHERE id = ?', post.authorId);
       if (include?.tags) {
         post.tags = await many(
@@ -164,7 +277,10 @@ export const prisma = {
       const clauses = [] as string[];
       const vals: any[] = [];
       if (where.published !== undefined) {
-        clauses.push('p.published = ?');
+        clauses.push(`CASE
+          WHEN p.published IN (1, '1', 'true', 'TRUE', true) THEN 1
+          ELSE 0
+        END = ?`);
         vals.push(where.published ? 1 : 0);
       }
       if (where.authorId) {
@@ -184,7 +300,13 @@ export const prisma = {
       const limit = args.take ? ` LIMIT ${Number(args.take)}` : '';
       const offset = args.skip ? ` OFFSET ${Number(args.skip)}` : '';
       const rows0 = await many<any>(`SELECT p.* FROM posts p ${whereSql} ORDER BY p.publishedAt DESC, p.createdAt DESC${limit}${offset}`, ...vals);
-      const rows = rows0.map((p) => ({ ...p, published: !!p.published, createdAt: toDate(p.createdAt), updatedAt: toDate(p.updatedAt), publishedAt: toDate(p.publishedAt) }));
+      const rows = rows0.map((p) => ({
+        ...p,
+        published: toBool(p.published),
+        createdAt: toDate(p.createdAt),
+        updatedAt: toDate(p.updatedAt),
+        publishedAt: toDate(p.publishedAt)
+      }));
 
       if (args.select) {
         return Promise.all(
@@ -193,10 +315,13 @@ export const prisma = {
             slug: p.slug,
             title: p.title,
             excerpt: p.excerpt,
+            cover_image: p.cover_image,
+            background_image: p.background_image,
+            reading_time: p.reading_time,
             publishedAt: toDate(p.publishedAt),
             createdAt: toDate(p.createdAt),
             updatedAt: toDate(p.updatedAt),
-            author: (await one('SELECT name, email FROM users WHERE id = ?', p.authorId)) || { name: null, email: '' },
+            author: (await one('SELECT id, name, email FROM users WHERE id = ?', p.authorId)) || { id: '', name: null, email: '' },
             tags: (
               await many(
                 `SELECT t.id, t.name, t.slug FROM post_tags pt JOIN tags t ON t.id = pt.tagId WHERE pt.postId = ?`,
@@ -211,7 +336,7 @@ export const prisma = {
     async create({ data }: any) {
       const id = cuidLike();
       await run(
-        'INSERT INTO posts (id, title, slug, excerpt, content, published, publishedAt, authorId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        'INSERT INTO posts (id, title, slug, excerpt, content, published, publishedAt, reading_time, seo_title, seo_description, canonical_url, cover_image, background_image, authorId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
         id,
         data.title,
         data.slug,
@@ -219,6 +344,12 @@ export const prisma = {
         data.content,
         data.published ? 1 : 0,
         data.publishedAt ? new Date(data.publishedAt).toISOString() : null,
+        data.reading_time ?? null,
+        data.seo_title ?? null,
+        data.seo_description ?? null,
+        data.canonical_url ?? null,
+        data.cover_image ?? null,
+        data.background_image ?? null,
         data.authorId
       );
       return (await one('SELECT * FROM posts WHERE id = ?', id)) as any;
@@ -226,7 +357,12 @@ export const prisma = {
     async update({ where, data }: any) {
       const fields = Object.keys(data || {});
       const set = fields.map((f) => `${f} = ?`).join(', ');
-      await run(`UPDATE posts SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, ...fields.map((f) => data[f]), where.id);
+      const bindings = fields.map((f) => {
+        if (f === 'published') return data[f] ? 1 : 0;
+        if (f === 'publishedAt' && data[f]) return new Date(data[f]).toISOString();
+        return data[f];
+      });
+      await run(`UPDATE posts SET ${set}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, ...bindings, where.id);
       return (await one('SELECT * FROM posts WHERE id = ?', where.id)) as any;
     },
     async delete({ where }: any) {
@@ -237,7 +373,10 @@ export const prisma = {
       const clauses: string[] = [];
       const vals: any[] = [];
       if (where?.published !== undefined) {
-        clauses.push('published = ?');
+        clauses.push(`CASE
+          WHEN published IN (1, '1', 'true', 'TRUE', true) THEN 1
+          ELSE 0
+        END = ?`);
         vals.push(where.published ? 1 : 0);
       }
       const sql = `SELECT COUNT(*) as c FROM posts ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}`;
@@ -268,6 +407,82 @@ export const prisma = {
     async create({ data }: any) {
       await run('INSERT OR IGNORE INTO post_tags (postId, tagId) VALUES (?, ?)', data.postId, data.tagId);
       return data;
+    }
+  },
+  draft: {
+    async findUnique({ where }: any) {
+      const key = where?.user_id_post_id;
+      if (!key) return null;
+      return one('SELECT * FROM post_drafts WHERE user_id = ? AND post_id = ?', key.user_id, key.post_id);
+    },
+    async upsert({ where, create, update }: any) {
+      const key = where?.user_id_post_id;
+      if (!key) throw new Error('missing draft key');
+      const found = await one('SELECT * FROM post_drafts WHERE user_id = ? AND post_id = ?', key.user_id, key.post_id);
+      if (found) {
+        await run(
+          'UPDATE post_drafts SET title = ?, excerpt = ?, content = ?, tags = ?, cover_image = ?, background_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          update.title ?? '',
+          update.excerpt ?? '',
+          update.content ?? '',
+          update.tags ?? '',
+          update.cover_image ?? '',
+          update.background_image ?? '',
+          (found as any).id
+        );
+        return one('SELECT * FROM post_drafts WHERE id = ?', (found as any).id);
+      }
+
+      const id = cuidLike();
+      await run(
+        'INSERT INTO post_drafts (id, post_id, user_id, title, excerpt, content, tags, cover_image, background_image, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        id,
+        create.post_id,
+        create.user_id,
+        create.title ?? '',
+        create.excerpt ?? '',
+        create.content ?? '',
+        create.tags ?? '',
+        create.cover_image ?? '',
+        create.background_image ?? ''
+      );
+      return one('SELECT * FROM post_drafts WHERE id = ?', id);
+    }
+  },
+  draftVersion: {
+    async create({ data }: any) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO post_draft_versions (id, draft_id, user_id, payload_json, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        data.draft_id,
+        data.user_id,
+        data.payload_json
+      );
+      return one('SELECT * FROM post_draft_versions WHERE id = ?', id);
+    },
+    async findMany({ where, take }: any = {}) {
+      const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 5';
+      const draftId = where?.draft_id;
+      const userId = where?.user_id;
+      if (!draftId || !userId) return [];
+      return many('SELECT * FROM post_draft_versions WHERE draft_id = ? AND user_id = ? ORDER BY created_at DESC' + limit, draftId, userId);
+    },
+    async prune({ draft_id, keep }: { draft_id: string; keep: number }) {
+      await run(
+        `DELETE FROM post_draft_versions
+         WHERE draft_id = ?
+           AND id IN (
+             SELECT id FROM post_draft_versions
+             WHERE draft_id = ?
+             ORDER BY created_at DESC
+             LIMIT -1 OFFSET ?
+           )`,
+        draft_id,
+        draft_id,
+        keep
+      );
+      return { ok: true };
     }
   },
   comment: {
@@ -302,6 +517,41 @@ export const prisma = {
       const k = where.userId_postId;
       await run('DELETE FROM favorites WHERE userId = ? AND postId = ?', k.userId, k.postId);
       return where;
+    }
+  },
+  auditLog: {
+    async create({ data }: any) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO audit_logs (id, actor_user_id, target_user_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        data.actor_user_id ?? null,
+        data.target_user_id ?? null,
+        data.action,
+        data.detail ?? null
+      );
+      return one('SELECT * FROM audit_logs WHERE id = ?', id);
+    },
+    async findMany({ take }: any = {}) {
+      const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 20';
+      return many(`SELECT * FROM audit_logs ORDER BY created_at DESC${limit}`);
+    }
+  },
+  setting: {
+    async get(key: string) {
+      await ensureSettingsTable();
+      return one<{ key: string; value: string; updated_at: string }>('SELECT * FROM site_settings WHERE key = ?', key);
+    },
+    async set(key: string, value: string) {
+      await ensureSettingsTable();
+      await run(
+        `INSERT INTO site_settings (key, value, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+        key,
+        value
+      );
+      return this.get(key);
     }
   }
 };

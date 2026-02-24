@@ -1,0 +1,112 @@
+import { getServerSession } from 'next-auth';
+
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { bumpCacheVersion } from '@/lib/cf-cache';
+import { getRequestId, logObs, alertLevel } from '@/lib/obs';
+import { syncPostToNotion } from '@/lib/notion-sync';
+import { sanitizeHtml, sanitizeText } from '@/lib/security';
+import { buildPostPath, slugify } from '@/lib/utils';
+
+function makeInternalPostSlug() {
+  return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+type DraftInput = {
+  id?: string;
+  title?: string;
+  excerpt?: string;
+  content?: string;
+  tags?: string;
+  coverImage?: string;
+  backgroundImage?: string;
+};
+
+export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = (await req.json().catch(() => ({}))) as DraftInput;
+  const id = body.id?.trim();
+  const title = sanitizeText(body.title?.trim() || '', 200);
+  const content = sanitizeHtml(body.content?.trim() || '');
+  const excerpt = sanitizeText(body.excerpt?.trim() || '', 500);
+  const coverImage = sanitizeText(body.coverImage?.trim() || '', 2000);
+  const backgroundImage = sanitizeText(body.backgroundImage?.trim() || '', 2000);
+  const tagLine = sanitizeText(body.tags?.trim() || '', 300);
+
+  if (!title || !content) return Response.json({ error: '标题与内容不能为空' }, { status: 400 });
+
+  if (id) {
+    const exists = await prisma.post.findUnique({ where: { id } });
+    if (!exists) return Response.json({ error: '文章不存在' }, { status: 404 });
+    if (exists.authorId !== session.user.id && session.user.role !== 'ADMIN') return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const words = content.split(/\s+/).filter(Boolean).length;
+  const readingTime = Math.max(1, Math.round(words / 220));
+  const slug = id ? undefined : makeInternalPostSlug();
+
+  const post = id
+    ? await prisma.post.update({
+        where: { id },
+        data: {
+          title,
+          excerpt,
+          content,
+          published: true,
+          publishedAt: new Date(),
+          reading_time: readingTime,
+          seo_title: title.slice(0, 60),
+          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
+          cover_image: coverImage || null,
+          background_image: backgroundImage || null
+        }
+      })
+    : await prisma.post.create({
+        data: {
+          title,
+          slug: slug!,
+          excerpt,
+          content,
+          published: true,
+          publishedAt: new Date(),
+          reading_time: readingTime,
+          seo_title: title.slice(0, 60),
+          seo_description: (excerpt || content.slice(0, 120)).slice(0, 160),
+          cover_image: coverImage || null,
+          background_image: backgroundImage || null,
+          authorId: session.user.id
+        }
+      });
+
+  const tags = tagLine
+    .split(',')
+    .map((i) => i.trim())
+    .filter(Boolean);
+
+  await prisma.postTag.deleteMany({ where: { postId: post.id } });
+  for (const tagName of tags) {
+    const tag = await prisma.tag.upsert({
+      where: { slug: slugify(tagName) },
+      update: { name: tagName },
+      create: { name: tagName, slug: slugify(tagName) }
+    });
+    await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
+  }
+
+  await bumpCacheVersion();
+  await syncPostToNotion(post.id, 'publish');
+
+  logObs('publish_post', {
+    requestId,
+    userId: session.user.id,
+    postId: post.id,
+    level: alertLevel('publish_post'),
+    durationMs: Date.now() - startedAt
+  });
+
+  return Response.json({ ok: true, requestId, id: post.id, path: buildPostPath(post) });
+}

@@ -2,10 +2,36 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 import { Navbar } from '@/components/navbar';
+import { WebVitalsReporter } from '@/components/web-vitals-reporter';
+
+function resolveMetadataBase() {
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  if (!raw) return new URL('https://sinon.live');
+  try {
+    return new URL(raw);
+  } catch {
+    try {
+      return new URL(`https://${raw}`);
+    } catch {
+      return new URL('https://sinon.live');
+    }
+  }
+}
 
 export const metadata: Metadata = {
+  metadataBase: resolveMetadataBase(),
   title: 'Komorebi',
-  description: 'Next.js 14 现代博客系统'
+  description: 'Next.js 现代博客系统',
+  openGraph: {
+    title: 'Komorebi',
+    description: 'Next.js 现代博客系统',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Komorebi',
+    description: 'Next.js 现代博客系统'
+  }
 };
 
 export const viewport: Viewport = {
@@ -19,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN">
       <body>
+        <WebVitalsReporter />
         <Navbar />
         <main className="container-page">{children}</main>
       </body>

@@ -43,6 +43,16 @@ jobs:
       - name: Install dependencies (deterministic)
         run: pnpm install --frozen-lockfile
 
+      - name: Dependency integrity guard
+        run: |
+          set -e
+          test -f pnpm-lock.yaml || (echo "pnpm-lock.yaml missing" && exit 1)
+          test ! -f package-lock.json || (echo "package-lock.json should not exist" && exit 1)
+          grep -q '"packageManager": "pnpm@' package.json || (echo "packageManager must be pnpm" && exit 1)
+
+      - name: Build route integrity check
+        run: pnpm build
+
       - name: Validate Cloudflare secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -51,23 +61,113 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "CF_API_TOKEN is empty" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "CF_ACCOUNT_ID is empty" && exit 1)
 
-      - name: Preflight DB schema check (prod)
+      - name: Validate migration filename convention
+        run: |
+          set -e
+          for f in d1/migrations/*.sql; do
+            b=$(basename "$f")
+            echo "checking $b"
+            echo "$b" | grep -Eq '^[0-9]{12}__[a-z0-9_]+\.sql$' || {
+              echo "invalid migration filename: $b"
+              echo "expected: YYYYMMDDHHmm__desc.sql"
+              exit 1
+            }
+          done
+
+      - name: Ensure R2 bucket exists (prod)
         if: github.ref == 'refs/heads/main'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          npx wrangler d1 execute 1acc05d4-49bb-4306-8115-5646a945dc9c --remote --command "PRAGMA table_info(users);" > /tmp/users_columns.txt
-          grep -q "disabled" /tmp/users_columns.txt || (echo "users.disabled column missing on prod DB" && cat /tmp/users_columns.txt && exit 1)
+          npx wrangler r2 bucket create komorebi-assets || echo "bucket komorebi-assets may already exist"
 
-      - name: Preflight DB schema check (dev)
+      - name: Ensure R2 bucket exists (dev)
         if: github.ref == 'refs/heads/dev'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          npx wrangler d1 execute b188ca51-b44e-48c5-8463-baf3091fc279 --remote --command "PRAGMA table_info(users);" > /tmp/users_columns_dev.txt
-          grep -q "disabled" /tmp/users_columns_dev.txt || (echo "users.disabled column missing on dev DB" && cat /tmp/users_columns_dev.txt && exit 1)
+          npx wrangler r2 bucket create komorebi-dev-assets || echo "bucket komorebi-dev-assets may already exist"
+
+      - name: Ensure schema_migrations exists (prod)
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler d1 execute DB --remote --file=./d1/migrations/202602230835__create_schema_migrations.sql
+
+      - name: Apply pending migrations (prod)
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -e
+          for f in $(ls d1/migrations/*.sql | sort); do
+            b=$(basename "$f")
+            [ "$b" = "202602230835__create_schema_migrations.sql" ] && continue
+
+            if [ "$b" = "202602221000__add_user_disabled.sql" ]; then
+              if npx wrangler d1 execute DB --remote --command "PRAGMA table_info(users);" | grep -q "disabled"; then
+                echo "prod migration already reflected in schema: $b"
+                npx wrangler d1 execute DB --remote --command "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES ('$b');"
+                continue
+              fi
+            fi
+
+            if npx wrangler d1 execute DB --remote --command "SELECT migration_name FROM schema_migrations WHERE migration_name='$b';" | grep -q "$b"; then
+              echo "prod migration already applied: $b"
+              continue
+            fi
+            echo "prod applying migration: $b"
+            npx wrangler d1 execute DB --remote --file="./$f"
+            npx wrangler d1 execute DB --remote --command "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES ('$b');"
+          done
+
+      - name: Ensure schema_migrations exists (dev)
+        if: github.ref == 'refs/heads/dev'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler d1 execute DB --env dev --remote --file=./d1/migrations/202602230835__create_schema_migrations.sql
+
+      - name: Apply pending migrations (dev)
+        if: github.ref == 'refs/heads/dev'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -e
+          for f in $(ls d1/migrations/*.sql | sort); do
+            b=$(basename "$f")
+            [ "$b" = "202602230835__create_schema_migrations.sql" ] && continue
+
+            if [ "$b" = "202602221000__add_user_disabled.sql" ]; then
+              if npx wrangler d1 execute DB --env dev --remote --command "PRAGMA table_info(users);" | grep -q "disabled"; then
+                echo "dev migration already reflected in schema: $b"
+                npx wrangler d1 execute DB --env dev --remote --command "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES ('$b');"
+                continue
+              fi
+            fi
+
+            if npx wrangler d1 execute DB --env dev --remote --command "SELECT migration_name FROM schema_migrations WHERE migration_name='$b';" | grep -q "$b"; then
+              echo "dev migration already applied: $b"
+              continue
+            fi
+            echo "dev applying migration: $b"
+            npx wrangler d1 execute DB --env dev --remote --file="./$f"
+            npx wrangler d1 execute DB --env dev --remote --command "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES ('$b');"
+          done
+
+      - name: Migration guard (production)
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute DB --remote --command "PRAGMA table_info(users);" > /tmp/users_columns_prod_guard.txt
+          grep -q "disabled" /tmp/users_columns_prod_guard.txt || (echo "migration guard failed: users.disabled missing" && exit 1)
 
       - name: Deploy main (production)
         if: github.ref == 'refs/heads/main'
@@ -76,9 +176,79 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: npx -y @opennextjs/cloudflare@1.16.5 build && npx -y @opennextjs/cloudflare@1.16.5 deploy
 
+      - name: Smoke test (production)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          check_url() {
+            url="$1"
+            ok_regex="$2"
+            code=$(curl -sS -o /tmp/smoke_body.txt -w "%{http_code}" "$url" || true)
+            echo "smoke $url => HTTP $code"
+            if ! echo "$code" | grep -Eq "$ok_regex"; then
+              echo "unexpected status for $url: $code"
+              echo "--- response body (first 20 lines) ---"
+              sed -n '1,20p' /tmp/smoke_body.txt || true
+              exit 1
+            fi
+          }
+          check_url "https://sinon.live/" "^(200|301|302)$"
+          check_url "https://sinon.live/login" "^(200|301|302)$"
+          check_url "https://sinon.live/write" "^(200|301|302)$"
+          check_url "https://sinon.live/write/preview" "^(200|301|302)$"
+          check_url "https://sinon.live/api/auth/signin/google" "^(200|302)$"
+
+      - name: Migration guard (dev)
+        if: github.ref == 'refs/heads/dev'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute DB --env dev --remote --command "PRAGMA table_info(users);" > /tmp/users_columns_dev_guard.txt
+          grep -q "disabled" /tmp/users_columns_dev_guard.txt || (echo "migration guard failed: users.disabled missing" && exit 1)
+
       - name: Deploy dev (staging)
         if: github.ref == 'refs/heads/dev'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: npx -y @opennextjs/cloudflare@1.16.5 build && npx -y @opennextjs/cloudflare@1.16.5 deploy --env dev
+
+      - name: Smoke test (dev)
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          set -e
+          check_url() {
+            url="$1"
+            ok_regex="$2"
+            code=$(curl -sS -o /tmp/smoke_body.txt -w "%{http_code}" "$url" || true)
+            echo "smoke $url => HTTP $code"
+            if ! echo "$code" | grep -Eq "$ok_regex"; then
+              echo "unexpected status for $url: $code"
+              echo "--- response body (first 20 lines) ---"
+              sed -n '1,20p' /tmp/smoke_body.txt || true
+              exit 1
+            fi
+          }
+          if ! getent hosts dev.sinon.live >/dev/null; then
+            echo "dev.sinon.live DNS unresolved, skip dev smoke test"
+            exit 0
+          fi
+          check_url "https://dev.sinon.live/" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/login" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/write" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/write/preview" "^(200|301|302)$"
+          check_url "https://dev.sinon.live/api/auth/signin/google" "^(200|302|400)$"
+
+      - name: Failure debug context
+        if: failure()
+        run: |
+          echo "branch=${GITHUB_REF} sha=${GITHUB_SHA}"
+          node -v
+          pnpm -v
+          echo "last 5 commits:"
+          git log --oneline -5 || true
+          echo "migration files:"
+          ls -1 d1/migrations || true
+          echo "wrangler env check:"
+          test -f wrangler.jsonc && sed -n '1,120p' wrangler.jsonc || true

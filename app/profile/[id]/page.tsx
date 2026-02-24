@@ -17,8 +17,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   return (
     <form action={saveProfile} className="mx-auto max-w-xl space-y-3">
       <h1 className="text-2xl font-bold">个人资料</h1>
+      <p className="text-sm text-zinc-600">邮箱：{user.email}</p>
       <input className="input" name="name" defaultValue={user.name || ''} placeholder="昵称" />
       <textarea className="input min-h-24" name="bio" defaultValue={user.bio || ''} placeholder="个人简介" />
+      <input className="input" name="image" defaultValue={user.image || ''} placeholder="头像 URL（可选）" />
       <button className="btn" type="submit">
         保存资料
       </button>

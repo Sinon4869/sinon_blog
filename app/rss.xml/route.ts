@@ -1,21 +1,24 @@
 import { prisma } from '@/lib/prisma';
+import { buildPostPath } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const posts = await prisma.post.findMany({ where: { published: true }, orderBy: { publishedAt: 'desc' }, take: 20 });
+  const posts = await prisma.post.findMany({ where: { published: true }, orderBy: { publishedAt: 'desc' }, take: 30 });
 
   const items = posts
-    .map(
-      (p) => `<item>
+    .map((p) => {
+      const image = (p as { cover_image?: string; background_image?: string }).cover_image || (p as { cover_image?: string; background_image?: string }).background_image;
+      return `<item>
   <title><![CDATA[${p.title}]]></title>
-  <link>${base}/posts/${p.slug}</link>
+  <link>${base}${buildPostPath(p)}</link>
   <guid>${p.id}</guid>
   <pubDate>${(p.publishedAt || p.createdAt).toUTCString()}</pubDate>
   <description><![CDATA[${p.excerpt || ''}]]></description>
-</item>`
-    )
+  ${image ? `<enclosure url="${image}" type="image/jpeg" />` : ''}
+</item>`;
+    })
     .join('\n');
 
   const xml = `<?xml version="1.0" encoding="UTF-8" ?>
