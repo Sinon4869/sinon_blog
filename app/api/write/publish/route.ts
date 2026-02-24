@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { bumpCacheVersion } from '@/lib/cf-cache';
 import { getRequestId, logObs, alertLevel } from '@/lib/obs';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { buildPostPath, slugify } from '@/lib/utils';
@@ -94,6 +95,8 @@ export async function POST(req: Request) {
     });
     await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } });
   }
+
+  await bumpCacheVersion();
 
   logObs('publish_post', {
     requestId,

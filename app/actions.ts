@@ -7,6 +7,7 @@ import { compare, hash } from 'bcryptjs';
 import { z } from 'zod';
 
 import { authOptions } from '@/lib/auth';
+import { bumpCacheVersion } from '@/lib/cf-cache';
 import { prisma } from '@/lib/prisma';
 import { SETTING_KEYS } from '@/lib/site-settings';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
@@ -66,6 +67,7 @@ export async function savePost(formData: FormData) {
     slug
   });
 
+  await bumpCacheVersion();
   revalidatePath('/');
   revalidatePath('/dashboard');
   revalidatePath(buildPostPath(post));
@@ -81,6 +83,7 @@ export async function deletePost(formData: FormData) {
   if (post.authorId !== user.id && user.role !== 'ADMIN') throw new Error('无权限删除');
 
   await prisma.post.delete({ where: { id } });
+  await bumpCacheVersion();
   revalidatePath('/');
   revalidatePath('/dashboard');
 }
@@ -103,6 +106,7 @@ export async function setPostPublished(formData: FormData) {
     }
   });
 
+  await bumpCacheVersion();
   revalidatePath('/');
   revalidatePath('/dashboard');
   if (post.id) revalidatePath(buildPostPath(post));
