@@ -216,3 +216,70 @@ pnpm exec wrangler d1 execute DB --env dev --remote --command "SELECT migration_
 - [ ] conflict 能被识别并可人工处理
 - [ ] 备份可生成、可列出、可从 key 恢复
 
+## 13) 当前整体架构与设计快照（2026-02）
+
+> 本节用于快速了解项目当前状态、模块边界与数据流，方便后续迭代时保持一致性。
+
+### 13.1 运行架构
+
+- 前端与 API：Next.js App Router（OpenNext 输出）
+- 运行时：Cloudflare Workers（`wrangler.jsonc`）
+- 数据层：D1（主业务数据）
+- 对象存储：R2（媒体资源 + 备份快照）
+- 缓存层：KV（`CACHE_KV`，当前用于搜索缓存与版本失效）
+- 身份认证：NextAuth（Google + 密码）
+
+### 13.2 核心模块分层
+
+- `app/`：页面与 API 路由
+  - `app/api/write/*`：草稿/发布链路
+  - `app/api/notion/*`：webhook、消费
+  - `app/api/admin/*`：审计、冲突治理、备份操作
+- `lib/prisma.ts`：D1 访问封装（当前为 D1 兼容的顺序执行语义）
+- `lib/post-service.ts`：文章与标签写入服务
+- `lib/cf-cache.ts`：KV 缓存读写 + 版本号失效
+- `lib/notion-sync.ts`：Blog↔Notion 同步、冲突识别、结构映射
+- `lib/backup.ts`：R2 快照备份与恢复
+- `lib/security.ts` + `lib/rate-limit.ts`：输入清洗与限流
+- `lib/obs.ts`：结构化日志与告警级别
+
+### 13.3 关键业务数据流
+
+1. **写作发布流**
+   - 编辑器提交 -> `app/actions.ts` / `app/api/write/publish`
+   - 写入 posts/tags
+   - 触发缓存版本失效
+   - 触发 Blog -> Notion 同步
+
+2. **缓存读取流（搜索）**
+   - 请求 `/api/search`
+   - 先查 KV（hit/miss）
+   - miss 回源 D1 并写回 KV
+   - 响应头返回 `x-cache-status`
+
+3. **Notion 回写流**
+   - webhook 入库到 `sync_events`（pending）
+   - consume 批量消费事件
+   - 回写博客并判定冲突
+   - 冲突进入 `sync_map.sync_state=conflict`
+
+4. **备份恢复流**
+   - 管理员触发备份 -> 导出已发布文章 JSON 到 R2
+   - 管理员按 key 恢复 -> 回写 posts + tags
+
+### 13.4 设计约束与已知取舍
+
+- D1 当前不允许手动 SQL 事务语句（BEGIN/COMMIT/ROLLBACK）；写路径采用兼容执行策略。
+- Notion 不保证与 HTML 100% 等价渲染；当前采用“结构化 block + 属性映射”策略（标题/列表/引用/代码等）。
+- 移动端样式采用“局部修复优先”，避免再次引入全站级样式副作用。
+
+### 13.5 运维与发布建议
+
+- 所有变更先走 `dev` 路由验证，再推广到 `main/prod`。
+- 每次发布至少验证：
+  - `/write` 发布链路
+  - `/api/search` 缓存命中头
+  - Notion 同步是否成功入库/消费
+  - 备份接口可用性
+- 保持 `wrangler.jsonc` 与 Cloudflare Dashboard 配置一致（尤其 observability）。
+
