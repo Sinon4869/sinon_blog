@@ -344,14 +344,24 @@ body {
 
 @media (max-width: 768px) {
   .mobile-reading {
-    font-size: 1.08rem;
-    line-height: 1.95;
+    font-size: 1.04rem;
+    line-height: 1.9;
+    overflow-x: hidden;
+  }
+
+  .mobile-reading,
+  .mobile-reading * {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .mobile-reading p {
     margin-top: 1rem;
     margin-bottom: 1rem;
-    line-height: 1.95;
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .mobile-reading h1,
@@ -373,6 +383,8 @@ body {
   .mobile-reading li {
     margin-top: 0.4rem;
     margin-bottom: 0.4rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .mobile-reading blockquote {
@@ -382,6 +394,8 @@ body {
     border-left: 4px solid #b8c4b9;
     background: #f7f7f4;
     border-radius: 0.5rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .mobile-reading pre {
@@ -399,6 +413,12 @@ body {
     width: 100%;
     overflow-x: auto;
     white-space: nowrap;
+  }
+
+  .mobile-reading img,
+  .mobile-reading video,
+  .mobile-reading iframe {
+    height: auto;
   }
 }
 
