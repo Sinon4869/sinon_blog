@@ -30,11 +30,14 @@ export async function saveSiteConfig(formData: FormData) {
   const siteIconUrl = sanitizeText(formData.get('siteIconUrl')?.toString() || '', 2000).trim();
 
   if (siteIconUrl) {
-    try {
-      const u = new URL(siteIconUrl);
-      if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid');
-    } catch {
-      redirectAdminNotice('站点图标图片 URL 无效，请使用 http/https', 'error', 'site-nav-config');
+    const isRelativeAssetPath = siteIconUrl.startsWith('/api/assets/') || siteIconUrl.startsWith('/');
+    if (!isRelativeAssetPath) {
+      try {
+        const u = new URL(siteIconUrl);
+        if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid');
+      } catch {
+        redirectAdminNotice('站点图标图片 URL 无效，请使用 http/https 或站内 /api/assets/... 路径', 'error', 'site-nav-config');
+      }
     }
   }
 

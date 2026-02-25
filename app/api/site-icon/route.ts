@@ -25,6 +25,9 @@ function esc(input: string) {
 export async function GET() {
   const iconUrl = String((await prisma.setting.get(SETTING_KEYS.siteIconUrl))?.value || '').trim();
   if (iconUrl) {
+    if (iconUrl.startsWith('/')) {
+      return new Response(null, { status: 302, headers: { Location: iconUrl } });
+    }
     try {
       const u = new URL(iconUrl);
       if (['http:', 'https:'].includes(u.protocol)) {
