@@ -151,8 +151,8 @@ export function NavbarClient({
                     账户设置
                   </Link>
                   {session.role === 'ADMIN' && (
-                    <Link href="/admin" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
-                      后台管理
+                    <Link href="/dashboard?tab=admin" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
+                      管理工作台
                     </Link>
                   )}
                   <form action="/api/auth/signout" method="post" className="mt-1">
@@ -205,8 +205,8 @@ export function NavbarClient({
                   账户管理
                 </Link>
                 {session.role === 'ADMIN' && (
-                  <Link href="/admin" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
-                    后台管理
+                  <Link href="/dashboard?tab=admin" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
+                    管理工作台
                   </Link>
                 )}
                 <form action="/api/auth/signout" method="post" className="px-1 pb-1 pt-2">
