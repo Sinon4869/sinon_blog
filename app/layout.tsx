@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+import { CommandPalette } from '@/components/command-palette';
 import { Navbar } from '@/components/navbar';
 import { PageVisitTracker } from '@/components/page-visit-tracker';
 import { WebVitalsReporter } from '@/components/web-vitals-reporter';
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <WebVitalsReporter />
         <PageVisitTracker />
+        <CommandPalette />
         <Navbar />
         <main className="container-page">{children}</main>
       </body>

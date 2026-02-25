@@ -120,6 +120,24 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
+      <section className="card space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-800">最近编辑</h2>
+          <Link href="/write/new" className="text-xs text-zinc-500 hover:underline">
+            新建文章
+          </Link>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {allMine.slice(0, 3).map((p) => (
+            <Link key={p.id} href={`/write?id=${p.id}`} className="rounded-lg border border-[var(--line-soft)] bg-white p-3 hover:bg-zinc-50">
+              <p className="line-clamp-1 text-sm font-medium text-zinc-800">{p.title}</p>
+              <p className="mt-1 text-xs text-zinc-500">{formatDate(p.updatedAt || p.createdAt)}</p>
+            </Link>
+          ))}
+          {allMine.length === 0 && <p className="text-sm text-zinc-500">暂无文章</p>}
+        </div>
+      </section>
+
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <p className="text-xs text-zinc-500">文章总数</p>

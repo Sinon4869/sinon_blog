@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { PostReadingEnhancements } from '@/components/post-reading-enhancements';
 import { SmartImage } from '@/components/smart-image';
 import type { Metadata } from 'next';
 import type { Route } from 'next';
@@ -197,7 +198,8 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="space-y-5">
-          <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
+          <PostReadingEnhancements containerId="post-content" />
+          <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="text-xs tracking-[0.2em] text-zinc-500">正文</p>
               {session?.user && (
