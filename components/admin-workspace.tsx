@@ -1,6 +1,5 @@
 import { createCategory, mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
-import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { AdminUserTable } from '@/components/admin-user-table';
 import { prisma } from '@/lib/prisma';
 import { ANONYMOUS_USER_EMAIL, SETTING_KEYS, SUPER_ADMIN_EMAIL } from '@/lib/site-settings';
@@ -21,27 +20,9 @@ type CategoryItem = {
   post_count: number;
 };
 
-function parseConfiguredCategories(value: string) {
-  const raw = value.trim();
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-        .slice(0, 20);
-    }
-  } catch {}
-  return raw
-    .split(/[\n,，]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 20);
-}
 
-export async function AdminWorkspace() {
-  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, siteIconSetting, navCategoriesSetting] = await Promise.all([
+export async function AdminWorkspace({ notice, type }: { notice?: string; type?: string } = {}) {
+  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, siteIconSetting, siteIconUrlSetting] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -59,7 +40,7 @@ export async function AdminWorkspace() {
     prisma.setting.get(SETTING_KEYS.profileLinks),
     prisma.setting.get(SETTING_KEYS.siteTitle),
     prisma.setting.get(SETTING_KEYS.siteIcon),
-    prisma.setting.get(SETTING_KEYS.navCategories)
+    prisma.setting.get(SETTING_KEYS.siteIconUrl)
   ]);
 
   const registrationEnabled = !registrationSetting || registrationSetting.value !== '0';
@@ -102,11 +83,15 @@ export async function AdminWorkspace() {
   const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
   const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
   const siteIcon = String((siteIconSetting as { value?: string } | null)?.value || '木').trim() || '木';
-  const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
-  const navCategoryList = parseConfiguredCategories(navCategories);
+  const siteIconUrl = String((siteIconUrlSetting as { value?: string } | null)?.value || '').trim();
 
   return (
     <div className="space-y-4">
+      {notice && (
+        <div className={`sticky top-20 z-30 rounded-xl border px-3 py-2 text-sm ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
+          {notice}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card">用户总数：{users}</div>
         <div className="card">文章总数：{posts}</div>
@@ -114,7 +99,7 @@ export async function AdminWorkspace() {
       </div>
 
 
-      <div className="card space-y-3">
+      <div id="site-nav-config" className="card space-y-3">
         <h2 className="text-lg font-semibold">站点与导航配置</h2>
         <form action={saveSiteConfig} className="grid gap-3">
           <div>
@@ -124,9 +109,13 @@ export async function AdminWorkspace() {
           <div>
             <label className="mb-1 block text-sm text-zinc-600">站点图标（支持 emoji / 短字符）</label>
             <input className="input" name="siteIcon" defaultValue={siteIcon} placeholder="例如：🌍 或 木" maxLength={8} />
-            <p className="mt-1 text-xs text-zinc-500">用于导航 Logo 与浏览器 favicon。若未立即生效，请强制刷新一次。</p>
           </div>
-          <NavCategoriesEditor initialCategories={navCategoryList} />
+          <div>
+            <label className="mb-1 block text-sm text-zinc-600">站点图标图片 URL（可选）</label>
+            <input className="input" name="siteIconUrl" defaultValue={siteIconUrl} placeholder="https://.../icon.png" />
+            <p className="mt-1 text-xs text-zinc-500">填写后优先使用图片作为导航 Logo 与 favicon；留空时使用上方字符图标。</p>
+          </div>
+          <p className="text-xs text-zinc-500">分类请在下方“分类管理中心”统一维护，导航将自动同步分类数据。</p>
           <div>
             <ConfirmSubmitButton className="btn" confirmText="确认保存站点与导航配置？">
               保存配置
@@ -175,7 +164,7 @@ export async function AdminWorkspace() {
         <AdminUserTable initialUsers={userList} />
       </div>
 
-      <div className="card space-y-3">
+      <div id="category-center" className="card space-y-3">
         <h2 className="text-lg font-semibold">分类管理中心</h2>
         <p className="text-sm text-zinc-500">分类创建、重命名、合并、删除与排序统一在这里管理。</p>
 

@@ -16,11 +16,13 @@ function isActive(pathname: string, href: string) {
 export function NavbarClient({
   siteTitle,
   siteIcon,
+  siteIconUrl,
   tags,
   session
 }: {
   siteTitle: string;
   siteIcon: string;
+  siteIconUrl: string;
   tags: NavTag[];
   session: SessionData;
 }) {
@@ -86,7 +88,14 @@ export function NavbarClient({
         } ${compact ? 'px-3 py-2 shadow-lg shadow-zinc-900/10 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
       >
         <Link href="/" className="flex min-w-0 items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-gradient-to-br from-zinc-200 to-zinc-300 text-sm shadow-inner">{siteIcon}</span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/50 bg-gradient-to-br from-zinc-200 to-zinc-300 text-sm shadow-inner">
+            {siteIconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={siteIconUrl} alt="site icon" className="h-full w-full object-cover" />
+            ) : (
+              siteIcon
+            )}
+          </span>
           <span className="max-w-[46vw] truncate text-[24px] font-semibold leading-none tracking-tight sm:max-w-none sm:text-[28px]">{siteTitle}</span>
         </Link>
 

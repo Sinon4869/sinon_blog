@@ -23,6 +23,16 @@ function esc(input: string) {
 }
 
 export async function GET() {
+  const iconUrl = String((await prisma.setting.get(SETTING_KEYS.siteIconUrl))?.value || '').trim();
+  if (iconUrl) {
+    try {
+      const u = new URL(iconUrl);
+      if (['http:', 'https:'].includes(u.protocol)) {
+        return Response.redirect(u.toString(), 302);
+      }
+    } catch {}
+  }
+
   const iconRaw = String((await prisma.setting.get(SETTING_KEYS.siteIcon))?.value || '').trim();
   const icon = (iconRaw || '木').slice(0, 2);
 
