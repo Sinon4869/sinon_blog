@@ -21,6 +21,7 @@ export async function saveSiteConfig(formData: FormData) {
 
   const siteTitleRaw = formData.get('siteTitle')?.toString().trim() || 'Komorebi';
   const siteTitle = siteTitleRaw.slice(0, 40) || 'Komorebi';
+  const siteIcon = sanitizeText(formData.get('siteIcon')?.toString() || '', 8).trim();
   const categoriesJson = formData.get('categoriesJson')?.toString() || '[]';
   let categoryNames: string[] = [];
   try {
@@ -33,6 +34,7 @@ export async function saveSiteConfig(formData: FormData) {
   }
 
   await prisma.setting.set(SETTING_KEYS.siteTitle, siteTitle);
+  await prisma.setting.set(SETTING_KEYS.siteIcon, siteIcon);
   await prisma.setting.set(SETTING_KEYS.navCategories, JSON.stringify(categoryNames));
 
   revalidatePath('/');

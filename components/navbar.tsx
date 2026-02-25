@@ -33,9 +33,10 @@ export async function Navbar() {
   let session: any = null;
   let tags: NavTag[] = [];
   let siteTitle = 'Komorebi';
+  let siteIcon = '木';
 
   try {
-    const [rawSession, rawTags, titleSetting, categoriesSetting] = await Promise.all([
+    const [rawSession, rawTags, titleSetting, iconSetting, categoriesSetting] = await Promise.all([
       getServerSession(authOptions),
       prisma.tag.findMany({
         select: { id: true, name: true, slug: true },
@@ -43,6 +44,7 @@ export async function Navbar() {
         take: 8
       }),
       prisma.setting.get('site_title'),
+      prisma.setting.get('site_icon'),
       prisma.setting.get('nav_categories')
     ]);
     session = rawSession;
@@ -57,10 +59,12 @@ export async function Navbar() {
         ? configuredNames.map((name, i) => ({ id: `cfg-${i}`, name, slug: slugify(name) || name }))
         : dbTags;
     siteTitle = String(titleSetting?.value || '').trim() || 'Komorebi';
+    siteIcon = String(iconSetting?.value || '').trim() || '木';
   } catch {
     session = null;
     tags = [];
     siteTitle = 'Komorebi';
+    siteIcon = '木';
   }
 
   const sessionData = session?.user
@@ -70,6 +74,6 @@ export async function Navbar() {
       }
     : null;
 
-  return <NavbarClient siteTitle={siteTitle} tags={tags} session={sessionData} />;
+  return <NavbarClient siteTitle={siteTitle} siteIcon={siteIcon} tags={tags} session={sessionData} />;
 }
 

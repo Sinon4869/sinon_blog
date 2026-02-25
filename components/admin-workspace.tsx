@@ -41,7 +41,7 @@ function parseConfiguredCategories(value: string) {
 }
 
 export async function AdminWorkspace() {
-  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, navCategoriesSetting] = await Promise.all([
+  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, siteIconSetting, navCategoriesSetting] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -58,6 +58,7 @@ export async function AdminWorkspace() {
     prisma.setting.get(SETTING_KEYS.profileAvatar),
     prisma.setting.get(SETTING_KEYS.profileLinks),
     prisma.setting.get(SETTING_KEYS.siteTitle),
+    prisma.setting.get(SETTING_KEYS.siteIcon),
     prisma.setting.get(SETTING_KEYS.navCategories)
   ]);
 
@@ -100,6 +101,7 @@ export async function AdminWorkspace() {
   const github = introLinksParsed.find((x) => x.label === 'GitHub')?.url || '';
   const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
   const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
+  const siteIcon = String((siteIconSetting as { value?: string } | null)?.value || '木').trim() || '木';
   const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
   const navCategoryList = parseConfiguredCategories(navCategories);
 
@@ -118,6 +120,10 @@ export async function AdminWorkspace() {
           <div>
             <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
             <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-zinc-600">站点图标（支持 emoji / 短字符）</label>
+            <input className="input" name="siteIcon" defaultValue={siteIcon} placeholder="例如：🌍 或 木" maxLength={8} />
           </div>
           <NavCategoriesEditor initialCategories={navCategoryList} />
           <div>
