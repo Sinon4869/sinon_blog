@@ -4,7 +4,6 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
 import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
-import { AdminWorkspace } from '@/components/admin-workspace';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { authOptions } from '@/lib/auth';
@@ -17,7 +16,6 @@ type DashboardSearchParams = {
   q?: string;
   status?: string;
   page?: string;
-  tab?: string;
 };
 
 type PostItem = {
@@ -73,7 +71,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const q = (sp.q || '').trim();
   const status = (sp.status || 'all').trim();
   const page = clampPage(sp.page);
-  const activeTab = sp.tab === 'admin' && isAdmin ? 'admin' : 'content';
 
   const where = {
     authorId: session.user.id,
@@ -123,24 +120,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <section className="card">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Link href="/dashboard" className={`rounded-md px-3 py-1.5 ${activeTab === 'content' ? 'bg-zinc-800 text-white' : 'border border-[var(--line-strong)] text-zinc-700 hover:bg-zinc-100'}`}>
-            内容工作台
-          </Link>
-          {isAdmin && (
-            <Link
-              href="/dashboard?tab=admin"
-              className={`rounded-md px-3 py-1.5 ${activeTab === 'admin' ? 'bg-zinc-800 text-white' : 'border border-[var(--line-strong)] text-zinc-700 hover:bg-zinc-100'}`}
-            >
-              管理工作台
-            </Link>
-          )}
-        </div>
-      </section>
-
-      {activeTab === 'content' && (
-        <>
       <section className="card space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-800">最近编辑</h2>
@@ -345,10 +324,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </Link>
         </div>
       )}
-        </>
-      )}
-
-      {activeTab === 'admin' && isAdmin && <AdminWorkspace />}
     </div>
   );
 }
