@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { createCategory, mergeOrDeleteCategory, renameCategory, updateCategoryOrderBatch } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
@@ -17,9 +18,21 @@ export function CategoryManagementCenter({ categories }: { categories: CategoryI
   const [items, setItems] = useState<CategoryItem[]>(categories);
   const [dragId, setDragId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const active = useMemo(() => items.find((x) => x.id === activeId) || null, [items, activeId]);
   const orderJson = useMemo(() => JSON.stringify(items.map((x, i) => ({ id: x.id, sortOrder: i }))), [items]);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (!activeId) return;
+    document.body.classList.add('modal-open');
+    return () => document.body.classList.remove('modal-open');
+  }, [activeId]);
 
   function move(fromId: string, toId: string) {
     if (fromId === toId) return;
@@ -95,61 +108,63 @@ export function CategoryManagementCenter({ categories }: { categories: CategoryI
         </div>
       )}
 
-      {active && (
-        <div className="fixed inset-0 z-[115]">
-          <button className="absolute inset-0 h-full w-full bg-zinc-900/30" onClick={() => setActiveId(null)} />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-[var(--line-soft)] bg-[#f8f7f3] p-4 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-zinc-800">管理分类：#{active.name}</h3>
-              <button className="btn-secondary" type="button" onClick={() => setActiveId(null)}>
-                关闭
-              </button>
-            </div>
+      {active && mounted &&
+        createPortal(
+          <div className="fixed inset-0 z-[125]">
+            <button className="absolute inset-0 h-full w-full bg-zinc-900/35" onClick={() => setActiveId(null)} />
+            <aside className="absolute right-0 top-0 h-screen w-full max-w-md overflow-y-auto border-l border-[var(--line-soft)] bg-[#f8f7f3] p-4 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-zinc-800">管理分类：#{active.name}</h3>
+                <button className="btn-secondary" type="button" onClick={() => setActiveId(null)}>
+                  关闭
+                </button>
+              </div>
 
-            <div className="space-y-3">
-              <form action={renameCategory} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
-                <input type="hidden" name="tagId" value={active.id} />
-                <label className="mb-1 block text-xs text-zinc-500">重命名</label>
-                <div className="flex gap-2">
-                  <input className="input" name="nextName" defaultValue={active.name} />
-                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认重命名该分类？">
-                    保存
+              <div className="space-y-3">
+                <form action={renameCategory} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
+                  <input type="hidden" name="tagId" value={active.id} />
+                  <label className="mb-1 block text-xs text-zinc-500">重命名</label>
+                  <div className="flex gap-2">
+                    <input className="input" name="nextName" defaultValue={active.name} />
+                    <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认重命名该分类？">
+                      保存
+                    </ConfirmSubmitButton>
+                  </div>
+                </form>
+
+                <form action={mergeOrDeleteCategory} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
+                  <input type="hidden" name="sourceTagId" value={active.id} />
+                  <input type="hidden" name="mode" value="merge" />
+                  <label className="mb-1 block text-xs text-zinc-500">合并到</label>
+                  <div className="flex gap-2">
+                    <select className="input" name="targetTagId" defaultValue="">
+                      <option value="">选择目标分类...</option>
+                      {items
+                        .filter((x) => x.id !== active.id)
+                        .map((x) => (
+                          <option key={x.id} value={x.id}>
+                            {x.name}
+                          </option>
+                        ))}
+                    </select>
+                    <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认合并该分类到目标分类？">
+                      合并
+                    </ConfirmSubmitButton>
+                  </div>
+                </form>
+
+                <form action={mergeOrDeleteCategory} className="rounded-xl border border-red-200 bg-red-50 p-3">
+                  <input type="hidden" name="sourceTagId" value={active.id} />
+                  <input type="hidden" name="mode" value="delete" />
+                  <ConfirmSubmitButton className="w-full rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100" confirmText="确认删除该分类？若存在文章关联将被拦截。">
+                    删除分类
                   </ConfirmSubmitButton>
-                </div>
-              </form>
-
-              <form action={mergeOrDeleteCategory} className="rounded-xl border border-[var(--line-soft)] bg-white p-3">
-                <input type="hidden" name="sourceTagId" value={active.id} />
-                <input type="hidden" name="mode" value="merge" />
-                <label className="mb-1 block text-xs text-zinc-500">合并到</label>
-                <div className="flex gap-2">
-                  <select className="input" name="targetTagId" defaultValue="">
-                    <option value="">选择目标分类...</option>
-                    {items
-                      .filter((x) => x.id !== active.id)
-                      .map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                  </select>
-                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认合并该分类到目标分类？">
-                    合并
-                  </ConfirmSubmitButton>
-                </div>
-              </form>
-
-              <form action={mergeOrDeleteCategory} className="rounded-xl border border-red-200 bg-red-50 p-3">
-                <input type="hidden" name="sourceTagId" value={active.id} />
-                <input type="hidden" name="mode" value="delete" />
-                <ConfirmSubmitButton className="w-full rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100" confirmText="确认删除该分类？若存在文章关联将被拦截。">
-                  删除分类
-                </ConfirmSubmitButton>
-              </form>
-            </div>
-          </aside>
-        </div>
-      )}
+                </form>
+              </div>
+            </aside>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
