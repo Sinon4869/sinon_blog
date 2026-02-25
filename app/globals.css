@@ -83,6 +83,22 @@ body {
   @apply rounded-2xl p-4 shadow-[0_10px_28px_rgba(20,20,20,0.06)] sm:p-5;
 }
 
+.btn-secondary {
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.66);
+  @apply rounded-lg px-3 py-2 text-sm text-zinc-700 transition-all hover:bg-white hover:shadow-sm active:scale-[0.98];
+}
+
+.section-kicker {
+  @apply text-[11px] tracking-[0.24em] text-zinc-500;
+}
+
+.hero-panel {
+  border: 1px solid color-mix(in oklab, var(--line-soft), #ffffff 14%);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.68) 0%, rgba(247, 246, 242, 0.72) 100%);
+  @apply rounded-3xl shadow-[0_12px_30px_rgba(23,24,25,0.06)];
+}
+
 .prose {
   color: #313332;
 }

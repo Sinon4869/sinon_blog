@@ -12,5 +12,13 @@ export default async function WriteCreatePage() {
 
   const categories = await prisma.tag.findMany({ take: 40 });
 
-  return <WriteEditor action={savePost} availableCategories={categories.map((t: Row) => String(t?.name || ''))} />;
+  return (
+    <div className="space-y-4">
+      <section className="hero-panel p-5 sm:p-6">
+        <p className="section-kicker">WRITER</p>
+        <h1 className="mt-2 text-2xl font-semibold text-zinc-800 sm:text-3xl">新建文章</h1>
+      </section>
+      <WriteEditor action={savePost} availableCategories={categories.map((t: Row) => String(t?.name || ''))} />
+    </div>
+  );
 }

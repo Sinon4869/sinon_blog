@@ -10,8 +10,11 @@ export default async function AdminPage() {
   if (session.user.role !== 'ADMIN') redirect('/');
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-bold">后台管理</h1>
+    <div className="space-y-4">
+      <section className="hero-panel p-5 sm:p-6">
+        <p className="section-kicker">ADMIN</p>
+        <h1 className="mt-2 text-2xl font-semibold text-zinc-800 sm:text-3xl">后台管理</h1>
+      </section>
       <AdminWorkspace />
     </div>
   );
