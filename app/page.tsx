@@ -24,6 +24,14 @@ function buildPageHref(q: string, tag: string, page: number) {
   return `/?${params.toString()}` as Route;
 }
 
+function truncateSummary(text: string, max = 130) {
+  const t = String(text || '').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const idx = Math.max(cut.lastIndexOf('。'), cut.lastIndexOf('，'), cut.lastIndexOf(' '));
+  return `${(idx > 24 ? cut.slice(0, idx) : cut).trim()}...`;
+}
+
 export default async function HomePage({ searchParams }: { searchParams: Promise<HomeSearchParams> }) {
   const sp = await searchParams;
   const q = (sp.q || '').trim();
@@ -51,9 +59,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   let posts: any[] = [];
   let total = 0;
   let tags: any[] = [];
+  let recentPosts: any[] = [];
+  let categoryStats: any[] = [];
+  let analytics = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
   let intro = { name: '', bio: '', avatar: '', links: [] as Array<{ label: string; url: string }> };
+
   try {
-    [posts, total, tags, intro] = await Promise.all([
+    [posts, total, tags, recentPosts, categoryStats, analytics, intro] = await Promise.all([
       prisma.post.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
@@ -73,63 +85,67 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       }),
       prisma.post.count({ where }),
       prisma.tag.findMany({
-        orderBy: { name: 'asc' },
+        orderBy: { sort_order: 'asc' },
         select: { id: true, name: true, slug: true },
-        take: 24
+        take: 30
       }),
+      prisma.post.findMany({
+        where: { published: true },
+        orderBy: { publishedAt: 'desc' },
+        take: 6,
+        select: { id: true, title: true, publishedAt: true, createdAt: true, cover_image: true }
+      }),
+      prisma.tag.adminList(),
+      prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } } as any)),
       getPersonalIntro()
     ]);
   } catch {
     posts = [];
     total = 0;
     tags = [];
+    recentPosts = [];
+    categoryStats = [];
+    analytics = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
     intro = { name: '', bio: '', avatar: '', links: [] };
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const featured = posts[0];
   const rest = posts.slice(1);
+  const updatedAt = posts[0]?.publishedAt || posts[0]?.createdAt;
 
   return (
-    <div className="space-y-8 sm:space-y-10">
-      <section className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
-        <div className="rounded-2xl border border-[var(--line-soft)] bg-white/60 p-5 sm:p-8">
-          <p className="text-xs tracking-[0.25em] text-zinc-500">KOMOREBI JOURNAL</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-wide text-zinc-800 sm:text-5xl">静かな場所で、ゆっくり読む。</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">
-            收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。
-          </p>
-        </div>
-        <aside className="rounded-2xl border border-[var(--line-soft)] bg-[linear-gradient(140deg,rgba(255,255,255,0.84),rgba(244,242,236,0.88))] p-5 sm:p-6">
-          <p className="text-xs tracking-[0.2em] text-zinc-500">INDEX</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-lg border border-[var(--line-soft)] bg-white/80 p-3">
-              <p className="text-[11px] tracking-wide text-zinc-500">文章</p>
-              <p className="mt-1 text-2xl font-semibold text-zinc-800">{total}</p>
-            </div>
-            <div className="rounded-lg border border-[var(--line-soft)] bg-white/80 p-3">
-              <p className="text-[11px] tracking-wide text-zinc-500">分类</p>
-              <p className="mt-1 text-2xl font-semibold text-zinc-800">{tags.length}</p>
-            </div>
+    <div className="space-y-7 sm:space-y-8">
+      <section className="hero-panel p-5 sm:p-7">
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+          <div>
+            <p className="section-kicker">KOMOREBI JOURNAL</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-wide text-zinc-800 sm:text-5xl">静かな場所で、ゆっくり読む。</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。</p>
           </div>
-          <p className="mt-3 text-sm leading-7 text-zinc-600">筛选分类或搜索关键词，快速进入你想读的文章。</p>
-          {(intro.name || intro.bio || intro.links.length > 0) && (
-            <div className="mt-4 rounded-lg border border-[var(--line-soft)] bg-white/75 p-3">
-              <p className="text-[11px] tracking-wide text-zinc-500">ABOUT</p>
-              <p className="mt-1 text-sm font-medium text-zinc-800">{intro.name || '作者'}</p>
-              <p className="mt-1 text-xs leading-6 text-zinc-600">{intro.bio || '欢迎来到这里。'}</p>
-              {intro.links.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {intro.links.map((l) => (
-                    <a key={l.label} href={l.url} className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100" target="_blank" rel="noreferrer">
-                      {l.label}
-                    </a>
-                  ))}
-                </div>
-              )}
+          <div className="rounded-xl border border-[var(--line-soft)] bg-white/75 p-4">
+            <p className="text-xs tracking-[0.2em] text-zinc-500">站点概览</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
+                <p className="text-[11px] text-zinc-500">文章</p>
+                <p className="text-xl font-semibold text-zinc-800">{total}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
+                <p className="text-[11px] text-zinc-500">分类</p>
+                <p className="text-xl font-semibold text-zinc-800">{tags.length}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
+                <p className="text-[11px] text-zinc-500">7d PV</p>
+                <p className="text-xl font-semibold text-zinc-800">{analytics.sevenDays?.pv ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
+                <p className="text-[11px] text-zinc-500">7d UV</p>
+                <p className="text-xl font-semibold text-zinc-800">{analytics.sevenDays?.uv ?? 0}</p>
+              </div>
             </div>
-          )}
-        </aside>
+            {updatedAt && <p className="mt-3 text-xs text-zinc-500">最近更新：{formatDate(updatedAt)}</p>}
+          </div>
+        </div>
       </section>
 
       <form className="card grid gap-2 sm:grid-cols-[1fr_auto_auto]" action="/">
@@ -139,104 +155,166 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           搜索
         </button>
         {(q || tag) && (
-          <Link className="rounded-md border border-[var(--line-strong)] px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100" href="/">
+          <Link className="btn-secondary" href="/">
             清空
           </Link>
         )}
       </form>
 
-      <section className="card space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs tracking-[0.2em] text-zinc-500">CATEGORIES</p>
-          <p className="text-xs text-zinc-500">共 {tags.length} 个分类</p>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <Link
-            href={q ? `/?q=${encodeURIComponent(q)}` : '/'}
-            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
-          >
-            全部
-          </Link>
-          {tags.map((t) => {
-            const href = `/category/${encodeURIComponent(t.slug)}`;
-            return (
-              <Link
-                key={t.id}
-                href={href as Route}
-                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${tag === t.slug ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
-              >
-                #{t.name}
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {featured && (
-        <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/65 sm:grid sm:grid-cols-[1.1fr_1.2fr]">
-          {featured.cover_image ? (
-            <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-full" />
-          ) : (
-            <div className="h-56 bg-zinc-200 sm:h-full" />
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-4">
+          {featured && (
+            <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 sm:grid sm:grid-cols-[1.05fr_1.15fr]">
+              {featured.cover_image ? (
+                <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-full" />
+              ) : (
+                <div className="h-56 bg-zinc-200 sm:h-full" />
+              )}
+              <div className="space-y-3 p-5 sm:p-7">
+                <p className="section-kicker">FEATURED NOTE</p>
+                <Link href={buildPostPath(featured) as Route} className="line-clamp-2 block text-2xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-3xl">
+                  {featured.title}
+                </Link>
+                <p className="line-clamp-3 text-sm leading-7 text-zinc-600">{truncateSummary(featured.excerpt || '暂无摘要', 160)}</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+                  <span>{formatDate(featured.publishedAt || featured.createdAt)}</span>
+                  <span>·</span>
+                  <span>{featured.reading_time || 1} min</span>
+                  {(featured.tags || []).slice(0, 2).map((t: any) => (
+                    <span key={t.tag.id} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-zinc-600">
+                      #{t.tag.name}
+                    </span>
+                  ))}
+                  {(featured.tags || []).length > 2 && <span>+{featured.tags.length - 2}</span>}
+                </div>
+              </div>
+            </article>
           )}
-          <div className="space-y-4 p-5 sm:p-8">
-            <p className="text-xs tracking-[0.25em] text-zinc-500">FEATURED NOTE</p>
-            <Link href={buildPostPath(featured) as Route} className="block text-3xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-4xl">
-              {featured.title}
-            </Link>
-            <p className="text-sm leading-7 text-zinc-600">{featured.excerpt || '暂无摘要'}</p>
-            <p className="text-xs text-zinc-500">
-              {(featured.author?.name || featured.author?.email) ?? '匿名'} · {formatDate(featured.publishedAt || featured.createdAt)} ·{' '}
-              {featured.reading_time || 1} min read
-            </p>
-          </div>
-        </article>
-      )}
 
-      <section className="grid gap-3 md:grid-cols-2">
-        {rest.map((post, index) => (
-          <article
-            key={post.id}
-            className="fade-rise rounded-2xl border border-[var(--line-soft)] bg-white/55 p-4 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-sm hover:shadow-zinc-900/5 sm:p-5"
-            style={{ ['--index' as string]: String(index) }}
-          >
-            <p className="text-xs tracking-[0.2em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
-            <Link href={buildPostPath(post) as Route} className="mt-2 block text-2xl font-semibold leading-snug text-zinc-800 hover:opacity-80 sm:text-3xl">
-              {post.title}
-            </Link>
-            <p className="mt-2 text-sm leading-7 text-zinc-600 sm:text-base">{post.excerpt || '暂无摘要'}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {post.tags.map((t: any) => (
-                <span key={t.tag.id} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-xs text-zinc-600">
-                  #{t.tag.name}
-                </span>
+          <div className="space-y-3">
+            {rest.map((post: any, index: number) => {
+              const cardHref = buildPostPath(post) as Route;
+              const showLeftImage = index % 2 === 0;
+              const tagsShown = (post.tags || []).slice(0, 3);
+              const extraCount = Math.max(0, (post.tags || []).length - tagsShown.length);
+              return (
+                <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-2">
+                  {showLeftImage && (
+                    <Link href={cardHref} className="block">
+                      {post.cover_image ? (
+                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-52 w-full object-cover sm:h-full" />
+                      ) : (
+                        <div className="h-52 bg-zinc-200 sm:h-full" />
+                      )}
+                    </Link>
+                  )}
+
+                  <div className="space-y-2 p-4 sm:p-5">
+                    <Link href={cardHref} className="block line-clamp-2 text-xl font-semibold leading-snug text-zinc-800 hover:opacity-80">
+                      {post.title}
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                      <span>{formatDate(post.publishedAt || post.createdAt)}</span>
+                      <span>·</span>
+                      <span>{post.reading_time || 1} min</span>
+                      {tagsShown.map((t: any) => (
+                        <span key={t.tag.id}>#{t.tag.name}</span>
+                      ))}
+                      {extraCount > 0 && <span>+{extraCount}</span>}
+                    </div>
+                    <p className="line-clamp-3 text-sm leading-7 text-zinc-600">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
+                  </div>
+
+                  {!showLeftImage && (
+                    <Link href={cardHref} className="block">
+                      {post.cover_image ? (
+                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-52 w-full object-cover sm:h-full" />
+                      ) : (
+                        <div className="h-52 bg-zinc-200 sm:h-full" />
+                      )}
+                    </Link>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          {posts.length === 0 && (
+            <section className="rounded-2xl border border-[var(--line-soft)] bg-white/60 p-6 text-center">
+              <p className="section-kicker">EMPTY RESULT</p>
+              <p className="mt-2 text-base text-zinc-700">没有符合筛选条件的文章。</p>
+            </section>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Link className={`btn ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page - 1)}>
+                上一页
+              </Link>
+              <span className="text-sm text-zinc-600">
+                第 {page} / {totalPages} 页
+              </span>
+              <Link className={`btn ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page + 1)}>
+                下一页
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <aside className="space-y-3">
+          <section className="card space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700">Recent Posts</h3>
+            {recentPosts.length === 0 ? (
+              <p className="text-sm text-zinc-500">暂无数据</p>
+            ) : (
+              recentPosts.map((p: any) => (
+                <Link key={p.id} href={buildPostPath(p) as Route} className="flex items-center gap-2 rounded-lg border border-[var(--line-soft)] bg-white/70 p-2 hover:bg-white">
+                  {p.cover_image ? (
+                    <SmartImage src={p.cover_image} alt={p.title} width={96} height={72} className="h-12 w-16 rounded object-cover" />
+                  ) : (
+                    <div className="h-12 w-16 rounded bg-zinc-200" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="line-clamp-1 text-sm text-zinc-800">{p.title}</p>
+                    <p className="text-xs text-zinc-500">{formatDate(p.publishedAt || p.createdAt)}</p>
+                  </div>
+                </Link>
+              ))
+            )}
+          </section>
+
+          <section className="card space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700">Categories</h3>
+            {(categoryStats || []).slice(0, 8).map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between text-sm">
+                <Link href={`/category/${encodeURIComponent(c.slug)}` as Route} className="text-zinc-700 hover:underline">
+                  {c.name}
+                </Link>
+                <span className="text-zinc-500">{c.post_count}</span>
+              </div>
+            ))}
+          </section>
+
+          <section className="card space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {tags.slice(0, 20).map((t: any) => (
+                <Link key={t.id} href={`/category/${encodeURIComponent(t.slug)}` as Route} className="rounded-full border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100">
+                  #{t.name}
+                </Link>
               ))}
             </div>
-          </article>
-        ))}
+          </section>
+
+          {(intro.name || intro.bio || intro.links.length > 0) && (
+            <section className="card space-y-2">
+              <h3 className="text-sm font-semibold text-zinc-700">About</h3>
+              <p className="text-sm font-medium text-zinc-800">{intro.name || '作者'}</p>
+              <p className="text-xs leading-6 text-zinc-600">{intro.bio || '欢迎来到这里。'}</p>
+            </section>
+          )}
+        </aside>
       </section>
-
-      {posts.length === 0 && (
-        <section className="rounded-2xl border border-[var(--line-soft)] bg-white/60 p-6 text-center">
-          <p className="text-xs tracking-[0.2em] text-zinc-500">EMPTY RESULT</p>
-          <p className="mt-2 text-base text-zinc-700">没有符合筛选条件的文章。</p>
-          <p className="mt-1 text-sm text-zinc-500">可以尝试更短的关键词，或清空筛选后查看全部内容。</p>
-        </section>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <Link className={`btn ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page - 1)}>
-            上一页
-          </Link>
-          <span className="text-sm text-zinc-600">
-            第 {page} / {totalPages} 页
-          </span>
-          <Link className={`btn ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`} href={buildPageHref(q, tag, page + 1)}>
-            下一页
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

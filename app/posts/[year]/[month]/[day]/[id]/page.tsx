@@ -20,6 +20,20 @@ async function findPostById(id: string) {
   });
 }
 
+
+function htmlToPlainText(input: string) {
+  return String(input || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ year: string; month: string; day: string; id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const post = await findPostById(id);
@@ -94,7 +108,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const image = (post as any).cover_image || (post as any).background_image || undefined;
   const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);
 
-  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro] = await Promise.all([
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro, postViews] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
     prisma.tag.findMany({}).then((rows) => rows.length),
     isAnonymousCommentEnabled(),
@@ -125,7 +139,11 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
           }
         }),
-    getPersonalIntro()
+    getPersonalIntro(),
+    prisma.transaction(async (tx) => {
+      const row = await tx.one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE post_id = ?', post.id);
+      return Number(row?.c ?? 0);
+    }).catch(() => 0)
   ]);
 
   const relatedPosts = (relatedRaw || []).filter((p: any) => p.id !== post.id).slice(0, 4);
@@ -181,9 +199,20 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
               <p className="text-xs tracking-[0.26em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
               <h1 className="text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">{post.title}</h1>
               <p className="max-w-2xl text-sm leading-7 text-zinc-600">{post.excerpt || '写给沉默时刻的短章。'}</p>
-              <p className="text-sm text-zinc-600">
-                {post.author.name || post.author.email} · {(post as any).reading_time || 1} min read · {post.comments.length} 条评论
-              </p>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                  <span>{post.author.name || post.author.email}</span>
+                  <span>·</span>
+                  <span>{formatDate(post.publishedAt || post.createdAt)}</span>
+                  <span>·</span>
+                  <span>{post.tags[0]?.tag?.name ? `#${post.tags[0].tag.name}` : '未分类'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
+                  <span>Word Count: {Math.max(1, htmlToPlainText(post.content).split(/\s+/).filter(Boolean).length)}</span>
+                  <span>Reading Time: {(post as any).reading_time || 1} mins</span>
+                  <span>Post Views: {postViews}</span>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
                   <span key={t.tagId} className="rounded-full border border-[var(--line-soft)] bg-white/70 px-2.5 py-1 text-xs text-zinc-700">
