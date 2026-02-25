@@ -1,6 +1,7 @@
 import { createCategory, mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { AdminUserTable } from '@/components/admin-user-table';
+import { SiteIconConfigField } from '@/components/site-icon-config-field';
 import { prisma } from '@/lib/prisma';
 import { ANONYMOUS_USER_EMAIL, SETTING_KEYS, SUPER_ADMIN_EMAIL } from '@/lib/site-settings';
 
@@ -110,11 +111,7 @@ export async function AdminWorkspace({ notice, type }: { notice?: string; type?:
             <label className="mb-1 block text-sm text-zinc-600">站点图标（支持 emoji / 短字符）</label>
             <input className="input" name="siteIcon" defaultValue={siteIcon} placeholder="例如：🌍 或 木" maxLength={8} />
           </div>
-          <div>
-            <label className="mb-1 block text-sm text-zinc-600">站点图标图片 URL（可选）</label>
-            <input className="input" name="siteIconUrl" defaultValue={siteIconUrl} placeholder="https://.../icon.png" />
-            <p className="mt-1 text-xs text-zinc-500">填写后优先使用图片作为导航 Logo 与 favicon；留空时使用上方字符图标。</p>
-          </div>
+          <SiteIconConfigField initialUrl={siteIconUrl} />
           <p className="text-xs text-zinc-500">分类请在下方“分类管理中心”统一维护，导航将自动同步分类数据。</p>
           <div>
             <ConfirmSubmitButton className="btn" confirmText="确认保存站点与导航配置？">
