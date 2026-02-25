@@ -90,7 +90,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     prisma.favorite.findMany({ where: { userId: session.user.id } }),
     isAdmin ? prisma.setting.get('site_title') : Promise.resolve(null),
     isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null),
-    prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } }))
+    prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 }, topPages: [], sources: [], devices: [], categories: [] }))
   ]);
 
   const allMine = (allMineRaw as PostItem[]) || [];
