@@ -30,8 +30,12 @@ export function AppModal({
     const onKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
     };
+    document.body.classList.add('modal-open');
     document.addEventListener('keydown', onKeydown);
-    return () => document.removeEventListener('keydown', onKeydown);
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.removeEventListener('keydown', onKeydown);
+    };
   }, [open, onCancel]);
 
   if (!open) return null;

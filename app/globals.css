@@ -45,6 +45,10 @@ body {
   background: radial-gradient(1000px 420px at 10% 0%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 68%);
 }
 
+body.modal-open .admin-notice {
+  display: none;
+}
+
 @keyframes fadeRiseIn {
   from {
     opacity: 0;

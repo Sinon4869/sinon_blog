@@ -89,7 +89,7 @@ export async function AdminWorkspace({ notice, type }: { notice?: string; type?:
   return (
     <div className="space-y-4">
       {notice && (
-        <div className={`sticky top-20 z-30 rounded-xl border px-3 py-2 text-sm ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
+        <div className={`admin-notice sticky top-20 z-30 rounded-xl border px-3 py-2 text-sm ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
           {notice}
         </div>
       )}
