@@ -147,6 +147,9 @@ CREATE INDEX IF NOT EXISTS idx_sync_events_status ON sync_events(status);
 CREATE TABLE IF NOT EXISTS page_view_events (
   id TEXT PRIMARY KEY,
   path TEXT NOT NULL,
+  post_id TEXT,
+  source TEXT NOT NULL DEFAULT 'direct',
+  device TEXT NOT NULL DEFAULT 'desktop',
   visitor_id TEXT NOT NULL,
   viewed_on TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -154,6 +157,9 @@ CREATE TABLE IF NOT EXISTS page_view_events (
 
 CREATE INDEX IF NOT EXISTS idx_page_view_events_viewed_on ON page_view_events(viewed_on);
 CREATE INDEX IF NOT EXISTS idx_page_view_events_path_viewed_on ON page_view_events(path, viewed_on);
+CREATE INDEX IF NOT EXISTS idx_page_view_events_post_viewed_on ON page_view_events(post_id, viewed_on);
+CREATE INDEX IF NOT EXISTS idx_page_view_events_source_viewed_on ON page_view_events(source, viewed_on);
+CREATE INDEX IF NOT EXISTS idx_page_view_events_device_viewed_on ON page_view_events(device, viewed_on);
 CREATE INDEX IF NOT EXISTS idx_page_view_events_visitor_viewed_on ON page_view_events(visitor_id, viewed_on);
 
 CREATE TABLE IF NOT EXISTS comments (

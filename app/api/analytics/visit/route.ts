@@ -18,6 +18,30 @@ function visitorId() {
   return `v_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function extractPostId(path: string) {
+  const m = path.match(/^\/posts\/\d{4}\/\d{2}\/\d{2}\/([^/?#]+)/);
+  return m?.[1] ? decodeURIComponent(m[1]) : null;
+}
+
+function detectSource(req: Request) {
+  const ref = req.headers.get('referer') || '';
+  if (!ref) return 'direct';
+  try {
+    const u = new URL(ref);
+    const h = u.hostname.toLowerCase();
+    if (h.includes('google.') || h.includes('bing.') || h.includes('baidu.') || h.includes('duckduckgo.')) return 'search';
+    return 'external';
+  } catch {
+    return 'external';
+  }
+}
+
+function detectDevice(req: Request) {
+  const ua = (req.headers.get('user-agent') || '').toLowerCase();
+  if (/mobile|android|iphone|ipad|ipod/.test(ua)) return 'mobile';
+  return 'desktop';
+}
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const path = normalizePath(body?.path || '/');
@@ -30,7 +54,14 @@ export async function POST(req: Request) {
   let vid = jar.get('vid')?.value || '';
   if (!vid) vid = visitorId();
 
-  await prisma.analytics.recordVisit({ path, visitorId: vid, viewedOn: dayKey() });
+  await prisma.analytics.recordVisit({
+    path,
+    postId: extractPostId(path),
+    source: detectSource(req),
+    device: detectDevice(req),
+    visitorId: vid,
+    viewedOn: dayKey()
+  });
 
   const res = NextResponse.json({ ok: true });
   if (!jar.get('vid')?.value) {

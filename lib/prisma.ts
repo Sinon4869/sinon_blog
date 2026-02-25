@@ -572,31 +572,79 @@ export const prisma = {
     }
   },
   analytics: {
-    async recordVisit({ path, visitorId, viewedOn }: { path: string; visitorId: string; viewedOn: string }) {
+    async recordVisit({
+      path,
+      postId,
+      source,
+      device,
+      visitorId,
+      viewedOn
+    }: {
+      path: string;
+      postId?: string | null;
+      source?: string;
+      device?: string;
+      visitorId: string;
+      viewedOn: string;
+    }) {
       const id = cuidLike();
       await run(
-        'INSERT INTO page_view_events (id, path, visitor_id, viewed_on, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        'INSERT INTO page_view_events (id, path, post_id, source, device, visitor_id, viewed_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
         id,
         path,
+        postId ?? null,
+        source || 'direct',
+        device || 'desktop',
         visitorId,
         viewedOn
       );
-      return { id, path, visitorId, viewedOn };
+      return { id, path, postId, source, device, visitorId, viewedOn };
     },
     async summary() {
       const today = utcDayOffset(0);
       const sevenDayStart = utcDayOffset(6);
 
-      const [todayPv, todayUv, sevenPv, sevenUv] = await Promise.all([
+      const [todayPv, todayUv, sevenPv, sevenUv, topPages, sourceRows, deviceRows, categoryRows] = await Promise.all([
         one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on = ?', today),
         one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on = ?', today),
         one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today),
-        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today)
+        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today),
+        many<{ path: string; pv: number }>(
+          'SELECT path, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY path ORDER BY pv DESC LIMIT 5',
+          sevenDayStart,
+          today
+        ),
+        many<{ source: string; pv: number }>(
+          'SELECT source, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY source ORDER BY pv DESC',
+          sevenDayStart,
+          today
+        ),
+        many<{ device: string; pv: number }>(
+          'SELECT device, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY device ORDER BY pv DESC',
+          sevenDayStart,
+          today
+        ),
+        many<{ name: string; pv: number }>(
+          `SELECT t.name as name, COUNT(*) as pv
+           FROM page_view_events pve
+           JOIN post_tags pt ON pt.postId = pve.post_id
+           JOIN tags t ON t.id = pt.tagId
+           WHERE pve.viewed_on >= ? AND pve.viewed_on <= ? AND pve.post_id IS NOT NULL
+           GROUP BY t.id, t.name
+           ORDER BY pv DESC
+           LIMIT 5`,
+          sevenDayStart,
+          today
+        )
       ]);
 
       return {
         today: { pv: todayPv?.c ?? 0, uv: todayUv?.c ?? 0 },
-        sevenDays: { pv: sevenPv?.c ?? 0, uv: sevenUv?.c ?? 0 }
+        sevenDays: { pv: sevenPv?.c ?? 0, uv: sevenUv?.c ?? 0 },
+        topPages: topPages || [],
+        sources: sourceRows || [],
+        devices: deviceRows || [],
+        categories: categoryRows || []
       };
     }
   },

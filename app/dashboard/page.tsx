@@ -135,10 +135,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             {draftCount} / {favorites.length}
           </p>
         </div>
-        <div className="card">
-          <p className="text-xs text-zinc-500">访客统计（初版）</p>
-          <p className="mt-1 text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
-          <p className="mt-1 text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
+        <div className="card space-y-1">
+          <p className="text-xs text-zinc-500">访客统计（二期）</p>
+          <p className="text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
+          <p className="text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
+          <p className="pt-1 text-xs text-zinc-500">Top 页面：{(analyticsSummary.topPages || []).slice(0, 3).map((x: { path: string; pv: number }) => `${x.path}(${x.pv})`).join('、') || '-'}</p>
+          <p className="text-xs text-zinc-500">来源：{(analyticsSummary.sources || []).map((x: { source: string; pv: number }) => `${x.source}:${x.pv}`).join(' / ') || '-'}</p>
+          <p className="text-xs text-zinc-500">设备：{(analyticsSummary.devices || []).map((x: { device: string; pv: number }) => `${x.device}:${x.pv}`).join(' / ') || '-'}</p>
+          <p className="text-xs text-zinc-500">分类：{(analyticsSummary.categories || []).slice(0, 3).map((x: { name: string; pv: number }) => `${x.name}:${x.pv}`).join(' / ') || '-'}</p>
         </div>
       </section>
 
