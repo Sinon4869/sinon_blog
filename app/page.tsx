@@ -213,22 +213,19 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           )}
 
           <div className="space-y-3">
-            {rest.map((post: any, index: number) => {
+            {rest.map((post: any) => {
               const cardHref = buildPostPath(post) as Route;
-              const showLeftImage = index % 2 === 0;
               const tagsShown = (post.tags || []).slice(0, 3);
               const extraCount = Math.max(0, (post.tags || []).length - tagsShown.length);
               return (
                 <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-[1.05fr_0.95fr]">
-                  {showLeftImage && (
-                    <Link href={cardHref} className="block">
-                      {post.cover_image ? (
-                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
-                      ) : (
-                        <div className="h-52 bg-zinc-200 sm:h-full" />
-                      )}
-                    </Link>
-                  )}
+                  <Link href={cardHref} className="block">
+                    {post.cover_image ? (
+                      <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
+                    ) : (
+                      <div className="h-52 bg-zinc-200 sm:h-full" />
+                    )}
+                  </Link>
 
                   <div className="space-y-2 p-4 sm:p-5">
                     <Link href={cardHref} className="block line-clamp-2 text-xl font-semibold leading-snug text-zinc-800 hover:opacity-80">
@@ -245,16 +242,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                     </div>
                     <p className="line-clamp-2 text-sm leading-7 text-zinc-600 sm:line-clamp-3">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
                   </div>
-
-                  {!showLeftImage && (
-                    <Link href={cardHref} className="block">
-                      {post.cover_image ? (
-                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
-                      ) : (
-                        <div className="h-52 bg-zinc-200 sm:h-full" />
-                      )}
-                    </Link>
-                  )}
                 </article>
               );
             })}
