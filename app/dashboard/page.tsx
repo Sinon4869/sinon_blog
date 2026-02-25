@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
 import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
+import { AnalyticsBoard } from '@/components/analytics-board';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { authOptions } from '@/lib/auth';
@@ -138,7 +139,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="card">
           <p className="text-xs text-zinc-500">文章总数</p>
           <p className="mt-1 text-3xl font-semibold text-zinc-800">{allMine.length}</p>
@@ -153,16 +154,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             {draftCount} / {favorites.length}
           </p>
         </div>
-        <div className="card space-y-1">
-          <p className="text-xs text-zinc-500">访客统计（二期）</p>
-          <p className="text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
-          <p className="text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
-          <p className="pt-1 text-xs text-zinc-500">Top 页面：{(analyticsSummary.topPages || []).slice(0, 3).map((x: { path: string; pv: number }) => `${x.path}(${x.pv})`).join('、') || '-'}</p>
-          <p className="text-xs text-zinc-500">来源：{(analyticsSummary.sources || []).map((x: { source: string; pv: number }) => `${x.source}:${x.pv}`).join(' / ') || '-'}</p>
-          <p className="text-xs text-zinc-500">设备：{(analyticsSummary.devices || []).map((x: { device: string; pv: number }) => `${x.device}:${x.pv}`).join(' / ') || '-'}</p>
-          <p className="text-xs text-zinc-500">分类：{(analyticsSummary.categories || []).slice(0, 3).map((x: { name: string; pv: number }) => `${x.name}:${x.pv}`).join(' / ') || '-'}</p>
-        </div>
       </section>
+
+      <AnalyticsBoard summary={analyticsSummary} />
 
       <form action="/dashboard" className="card grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
         <input className="input" name="q" defaultValue={q} placeholder="搜索标题或摘要..." />
