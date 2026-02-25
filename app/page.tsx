@@ -124,26 +124,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。</p>
           </div>
           <div className="rounded-xl border border-[var(--line-soft)] bg-white/75 p-4">
-            <p className="text-xs tracking-[0.2em] text-zinc-500">站点概览</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
-                <p className="text-[11px] text-zinc-500">文章</p>
-                <p className="text-xl font-semibold text-zinc-800">{total}</p>
+            <p className="text-xs tracking-[0.2em] text-zinc-500">ABOUT</p>
+            <p className="mt-2 text-base font-semibold text-zinc-800">{intro.name || '作者'}</p>
+            <p className="mt-1 text-sm leading-7 text-zinc-600">{intro.bio || '欢迎来到这里，记录技术、生活和长期主义。'}</p>
+            {intro.links.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {intro.links.slice(0, 4).map((l) => (
+                  <a key={l.label} href={l.url} target="_blank" rel="noreferrer" className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+                    {l.label}
+                  </a>
+                ))}
               </div>
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
-                <p className="text-[11px] text-zinc-500">分类</p>
-                <p className="text-xl font-semibold text-zinc-800">{tags.length}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
-                <p className="text-[11px] text-zinc-500">7d PV</p>
-                <p className="text-xl font-semibold text-zinc-800">{analytics.sevenDays?.pv ?? 0}</p>
-              </div>
-              <div className="rounded-lg border border-[var(--line-soft)] bg-white px-3 py-2">
-                <p className="text-[11px] text-zinc-500">7d UV</p>
-                <p className="text-xl font-semibold text-zinc-800">{analytics.sevenDays?.uv ?? 0}</p>
-              </div>
-            </div>
-            {updatedAt && <p className="mt-3 text-xs text-zinc-500">最近更新：{formatDate(updatedAt)}</p>}
+            )}
           </div>
         </div>
       </section>
@@ -314,17 +306,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </div>
           </section>
 
-          {(intro.name || intro.bio || intro.links.length > 0) && (
-            <section className="card space-y-2">
-              <h3 className="text-sm font-semibold text-zinc-700">站点信息</h3>
-              <div className="space-y-1 text-xs text-zinc-600">
-                <p>文章数：{total}</p>
-                <p>7d PV：{analytics.sevenDays?.pv ?? 0}</p>
-                <p>7d UV：{analytics.sevenDays?.uv ?? 0}</p>
-                <p>最近更新：{updatedAt ? formatDate(updatedAt) : '-'}</p>
-              </div>
-            </section>
-          )}
+          <section className="card space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-700">站点概览</h3>
+            <div className="space-y-1 text-xs text-zinc-600">
+              <p>文章数：{total}</p>
+              <p>分类数：{tags.length}</p>
+              <p>7d PV：{analytics.sevenDays?.pv ?? 0}</p>
+              <p>7d UV：{analytics.sevenDays?.uv ?? 0}</p>
+              <p>最近更新：{updatedAt ? formatDate(updatedAt) : '-'}</p>
+            </div>
+          </section>
 
           {(intro.name || intro.bio || intro.links.length > 0) && (
             <section className="card space-y-2">
