@@ -1,6 +1,7 @@
-import { createCategory, mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
+import { savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { AdminUserTable } from '@/components/admin-user-table';
+import { CategoryManagementCenter } from '@/components/category-management-center';
 import { SiteIconConfigField } from '@/components/site-icon-config-field';
 import { AdminNotice } from '@/components/admin-notice';
 import { prisma } from '@/lib/prisma';
@@ -158,74 +159,7 @@ export async function AdminWorkspace({ notice, type }: { notice?: string; type?:
         <AdminUserTable initialUsers={userList} />
       </div>
 
-      <div id="category-center" className="card space-y-3">
-        <h2 className="text-lg font-semibold">分类管理中心</h2>
-        <p className="text-sm text-zinc-500">分类创建、重命名、合并、删除与排序统一在这里管理。</p>
-
-        <form action={createCategory} className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input className="input" name="name" placeholder="输入新分类名称，例如：产品复盘" />
-          <ConfirmSubmitButton className="btn" confirmText="确认创建该分类？">
-            创建分类
-          </ConfirmSubmitButton>
-        </form>
-
-        <div className="space-y-3">
-          {categories.length === 0 && <p className="text-sm text-zinc-500">暂无分类</p>}
-          {categories.map((cat) => (
-            <div key={cat.id} className="space-y-3 rounded-2xl border border-[var(--line-soft)] bg-white/85 p-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium text-zinc-800">#{cat.name}</span>
-                <span className="text-zinc-500">slug: {cat.slug}</span>
-                <span className="text-zinc-500">文章数: {cat.post_count}</span>
-              </div>
-
-              <div className="grid gap-2 md:grid-cols-3">
-                <form action={renameCategory} className="flex gap-2">
-                  <input type="hidden" name="tagId" value={cat.id} />
-                  <input className="input" name="nextName" defaultValue={cat.name} placeholder="新分类名" />
-                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认重命名该分类？">
-                    重命名
-                  </ConfirmSubmitButton>
-                </form>
-
-                <form action={updateCategoryOrder} className="flex gap-2">
-                  <input type="hidden" name="tagId" value={cat.id} />
-                  <input className="input" name="sortOrder" type="number" defaultValue={cat.sort_order} />
-                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认更新排序？">
-                    排序
-                  </ConfirmSubmitButton>
-                </form>
-
-                <form action={mergeOrDeleteCategory} className="flex gap-2">
-                  <input type="hidden" name="sourceTagId" value={cat.id} />
-                  <input type="hidden" name="mode" value="merge" />
-                  <select className="input" name="targetTagId" defaultValue="">
-                    <option value="">合并到...</option>
-                    {categories
-                      .filter((x) => x.id !== cat.id)
-                      .map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                  </select>
-                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认合并该分类到目标分类？">
-                    合并
-                  </ConfirmSubmitButton>
-                </form>
-              </div>
-
-              <form action={mergeOrDeleteCategory}>
-                <input type="hidden" name="sourceTagId" value={cat.id} />
-                <input type="hidden" name="mode" value="delete" />
-                <ConfirmSubmitButton className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100" confirmText="确认删除该分类？若存在文章关联将被拦截。">
-                  删除分类
-                </ConfirmSubmitButton>
-              </form>
-            </div>
-          ))}
-        </div>
-      </div>
+      <CategoryManagementCenter categories={categories} />
 
       <div className="card space-y-2">
         <div className="flex items-center justify-between">
