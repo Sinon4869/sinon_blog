@@ -83,13 +83,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       : {})
   };
 
-  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting] = await Promise.all([
+  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting, analyticsSummary] = await Promise.all([
     prisma.post.findMany({ where: { authorId: session.user.id }, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     prisma.favorite.findMany({ where: { userId: session.user.id } }),
     isAdmin ? prisma.setting.get('site_title') : Promise.resolve(null),
-    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null)
+    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null),
+    prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 }, topPages: [], sources: [], devices: [], categories: [] }))
   ]);
 
   const allMine = (allMineRaw as PostItem[]) || [];
@@ -119,7 +120,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="card space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-800">最近编辑</h2>
+          <Link href="/write/new" className="text-xs text-zinc-500 hover:underline">
+            新建文章
+          </Link>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {allMine.slice(0, 3).map((p) => (
+            <Link key={p.id} href={`/write?id=${p.id}`} className="rounded-lg border border-[var(--line-soft)] bg-white p-3 hover:bg-zinc-50">
+              <p className="line-clamp-1 text-sm font-medium text-zinc-800">{p.title}</p>
+              <p className="mt-1 text-xs text-zinc-500">{formatDate(p.updatedAt || p.createdAt)}</p>
+            </Link>
+          ))}
+          {allMine.length === 0 && <p className="text-sm text-zinc-500">暂无文章</p>}
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <p className="text-xs text-zinc-500">文章总数</p>
           <p className="mt-1 text-3xl font-semibold text-zinc-800">{allMine.length}</p>
@@ -133,6 +152,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-3xl font-semibold text-zinc-800">
             {draftCount} / {favorites.length}
           </p>
+        </div>
+        <div className="card space-y-1">
+          <p className="text-xs text-zinc-500">访客统计（二期）</p>
+          <p className="text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
+          <p className="text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
+          <p className="pt-1 text-xs text-zinc-500">Top 页面：{(analyticsSummary.topPages || []).slice(0, 3).map((x: { path: string; pv: number }) => `${x.path}(${x.pv})`).join('、') || '-'}</p>
+          <p className="text-xs text-zinc-500">来源：{(analyticsSummary.sources || []).map((x: { source: string; pv: number }) => `${x.source}:${x.pv}`).join(' / ') || '-'}</p>
+          <p className="text-xs text-zinc-500">设备：{(analyticsSummary.devices || []).map((x: { device: string; pv: number }) => `${x.device}:${x.pv}`).join(' / ') || '-'}</p>
+          <p className="text-xs text-zinc-500">分类：{(analyticsSummary.categories || []).slice(0, 3).map((x: { name: string; pv: number }) => `${x.name}:${x.pv}`).join(' / ') || '-'}</p>
         </div>
       </section>
 

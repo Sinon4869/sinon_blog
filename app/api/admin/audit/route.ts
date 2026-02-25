@@ -1,13 +1,11 @@
-import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
-import { authOptions } from '@/lib/auth';
+import { requireAdminApi } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: '未登录' }, { status: 401 });
-  if (session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const admin = await requireAdminApi();
+  if (!admin.ok) return admin.response;
 
   const { searchParams } = new URL(req.url);
   const action = (searchParams.get('action') || '').trim();

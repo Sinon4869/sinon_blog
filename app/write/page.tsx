@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { savePost } from '@/app/actions';
 import { WriteEditor } from '@/components/write-editor';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, type Row } from '@/lib/prisma';
 
 export default async function WritePage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   const sp = await searchParams;
@@ -22,9 +22,12 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
     redirect('/dashboard');
   }
 
+  const categories = await prisma.tag.findMany({ take: 40 });
+
   return (
     <WriteEditor
       action={savePost}
+      availableCategories={categories.map((t: Row) => String(t?.name || ''))}
       post={
         {
           id: post.id,

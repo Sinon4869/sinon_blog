@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { PostReadingEnhancements } from '@/components/post-reading-enhancements';
 import { SmartImage } from '@/components/smart-image';
 import type { Metadata } from 'next';
 import type { Route } from 'next';
@@ -9,7 +10,7 @@ import { toggleFavorite } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
 import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
-import { isAnonymousCommentEnabled } from '@/lib/site-settings';
+import { getPersonalIntro, isAnonymousCommentEnabled } from '@/lib/site-settings';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 async function findPostById(id: string) {
@@ -91,11 +92,43 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
   const postUrl = `${base}${canonicalPath}`;
   const image = (post as any).cover_image || (post as any).background_image || undefined;
-  const [authorPostCount, globalTagCount, anonymousCommentEnabled] = await Promise.all([
+  const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);
+
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
     prisma.tag.findMany({}).then((rows) => rows.length),
-    isAnonymousCommentEnabled()
+    isAnonymousCommentEnabled(),
+    tagSlugs.length
+      ? prisma.post.findMany({
+          where: { published: true, tags: { some: { tag: { slug: tagSlugs[0] } } } },
+          orderBy: { publishedAt: 'desc' },
+          take: 12,
+          select: {
+            id: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            createdAt: true,
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+          }
+        })
+      : prisma.post.findMany({
+          where: { published: true, authorId: post.authorId },
+          orderBy: { publishedAt: 'desc' },
+          take: 12,
+          select: {
+            id: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            createdAt: true,
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+          }
+        }),
+    getPersonalIntro()
   ]);
+
+  const relatedPosts = (relatedRaw || []).filter((p: any) => p.id !== post.id).slice(0, 4);
 
   const articleJsonLd = {
     '@context': 'https://schema.org',
@@ -165,7 +198,8 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="space-y-5">
-          <article className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
+          <PostReadingEnhancements containerId="post-content" />
+          <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="text-xs tracking-[0.2em] text-zinc-500">正文</p>
               {session?.user && (
@@ -179,6 +213,25 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             </div>
             <MdxContent source={post.content} />
           </article>
+
+          <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-zinc-800">相关文章</h2>
+              <a href="/archives" className="text-xs text-zinc-500 hover:underline">查看归档</a>
+            </div>
+            <div className="space-y-2">
+              {relatedPosts.length === 0 && <p className="text-sm text-zinc-500">暂无相关文章。</p>}
+              {relatedPosts.map((rp: any) => (
+                <article key={rp.id} className="rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3">
+                  <a href={buildPostPath(rp)} className="text-base font-medium text-zinc-800 hover:underline">
+                    {rp.title}
+                  </a>
+                  <p className="mt-1 text-xs text-zinc-500">{formatDate(rp.publishedAt || rp.createdAt)}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{rp.excerpt || '暂无摘要'}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
             <h2 className="text-2xl font-semibold text-zinc-800">评论</h2>
@@ -229,21 +282,30 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             <div className="space-y-4 p-4">
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
-                {post.author.image ? (
-                  <SmartImage src={post.author.image} alt={post.author.name || post.author.email} width={64} height={64} className="h-full w-full object-cover" />
+                {(personalIntro.avatar || post.author.image) ? (
+                  <SmartImage src={personalIntro.avatar || post.author.image} alt={personalIntro.name || post.author.name || post.author.email} width={64} height={64} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-lg text-zinc-600">
-                    {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
+                    {(personalIntro.name || post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
                   </div>
                 )}
               </div>
                 <div className="min-w-0">
-                  <h4 className="truncate text-xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
+                  <h4 className="truncate text-xl font-semibold text-zinc-800">{personalIntro.name || post.author.name || '匿名作者'}</h4>
                   <p className="text-xs tracking-[0.16em] text-zinc-500">持续写作记录</p>
                 </div>
               </div>
 
-              <p className="text-sm leading-7 text-zinc-600">{post.author.bio || '热爱写作，持续输出。'}</p>
+              <p className="text-sm leading-7 text-zinc-600">{personalIntro.bio || post.author.bio || '热爱写作，持续输出。'}</p>
+              {personalIntro.links?.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {personalIntro.links.map((l) => (
+                    <a key={l.label} href={l.url} className="rounded border border-[var(--line-soft)] bg-white/70 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100" target="_blank" rel="noreferrer">
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-2 rounded-xl border border-[var(--line-soft)] bg-white/70 p-3">
                 <div className="flex items-center justify-between">

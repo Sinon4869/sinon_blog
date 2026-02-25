@@ -1,16 +1,11 @@
-import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
-import { authOptions } from '@/lib/auth';
+import { requireAdminApi } from '@/lib/api-auth';
 import { backupPostsToR2, listBackupKeys, restorePostsFromR2 } from '@/lib/backup';
 
-async function ensureAdmin() {
-  const session = await getServerSession(authOptions);
-  return Boolean(session?.user && session.user.role === 'ADMIN');
-}
-
 export async function GET(req: Request) {
-  if (!(await ensureAdmin())) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const admin = await requireAdminApi();
+  if (!admin.ok) return admin.response;
   const { searchParams } = new URL(req.url);
   const limit = Number(searchParams.get('limit') || '20');
   const result = await listBackupKeys(limit);
@@ -18,7 +13,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!(await ensureAdmin())) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const admin = await requireAdminApi();
+  if (!admin.ok) return admin.response;
 
   const body = (await req.json().catch(() => ({}))) as { action?: 'backup' | 'restore'; key?: string };
   const action = body.action || 'backup';

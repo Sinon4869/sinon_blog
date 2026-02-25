@@ -124,6 +124,12 @@ function toBool(v: any): boolean {
   return Boolean(v);
 }
 
+function utcDayOffset(daysAgo: number) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
 export const prisma = {
   async transaction<T>(fn: (tx: { run: (sql: string, ...bindings: any[]) => Promise<any>; one: <R = Row>(sql: string, ...bindings: any[]) => Promise<R | null>; many: <R = Row>(sql: string, ...bindings: any[]) => Promise<R[]> }) => Promise<T>) {
     const db = await getDB();
@@ -385,8 +391,25 @@ export const prisma = {
     }
   },
   tag: {
-    async findMany(_args?: any) {
-      return many('SELECT id, name, slug FROM tags ORDER BY name ASC LIMIT 30');
+    async findMany(args: any = {}) {
+      const take = Number(args?.take || 30);
+      const orderByName = args?.orderBy?.name;
+      const orderSql = orderByName === 'desc' ? 'ORDER BY sort_order ASC, name DESC' : 'ORDER BY sort_order ASC, name ASC';
+      return many(`SELECT id, name, slug, sort_order FROM tags ${orderSql} LIMIT ?`, take);
+    },
+    async findUnique({ where }: any) {
+      if (where?.id) return one('SELECT id, name, slug, sort_order FROM tags WHERE id = ?', where.id);
+      if (where?.slug) return one('SELECT id, name, slug, sort_order FROM tags WHERE slug = ?', where.slug);
+      return null;
+    },
+    async adminList() {
+      return many(
+        `SELECT t.id, t.name, t.slug, t.sort_order, COUNT(pt.postId) AS post_count
+         FROM tags t
+         LEFT JOIN post_tags pt ON pt.tagId = t.id
+         GROUP BY t.id, t.name, t.slug, t.sort_order
+         ORDER BY t.sort_order ASC, t.name ASC`
+      );
     },
     async upsert({ where, update, create }: any) {
       const found = await one('SELECT * FROM tags WHERE slug = ?', where.slug);
@@ -395,8 +418,19 @@ export const prisma = {
         return (await one('SELECT * FROM tags WHERE slug = ?', where.slug)) as any;
       }
       const id = cuidLike();
-      await run('INSERT INTO tags (id, name, slug, createdAt) VALUES (?, ?, ?, CURRENT_TIMESTAMP)', id, create.name, create.slug);
+      await run('INSERT INTO tags (id, name, slug, sort_order, createdAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)', id, create.name, create.slug, create.sort_order ?? 0);
       return (await one('SELECT * FROM tags WHERE id = ?', id)) as any;
+    },
+    async update({ where, data }: any) {
+      const fields = Object.keys(data || {});
+      if (!fields.length) return this.findUnique({ where });
+      const set = fields.map((f) => `${f} = ?`).join(', ');
+      await run(`UPDATE tags SET ${set} WHERE id = ?`, ...fields.map((f) => data[f]), where.id);
+      return this.findUnique({ where });
+    },
+    async delete({ where }: any) {
+      await run('DELETE FROM tags WHERE id = ?', where.id);
+      return { id: where.id };
     }
   },
   postTag: {
@@ -535,6 +569,83 @@ export const prisma = {
     async findMany({ take }: any = {}) {
       const limit = take ? ` LIMIT ${Number(take)}` : ' LIMIT 20';
       return many(`SELECT * FROM audit_logs ORDER BY created_at DESC${limit}`);
+    }
+  },
+  analytics: {
+    async recordVisit({
+      path,
+      postId,
+      source,
+      device,
+      visitorId,
+      viewedOn
+    }: {
+      path: string;
+      postId?: string | null;
+      source?: string;
+      device?: string;
+      visitorId: string;
+      viewedOn: string;
+    }) {
+      const id = cuidLike();
+      await run(
+        'INSERT INTO page_view_events (id, path, post_id, source, device, visitor_id, viewed_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        id,
+        path,
+        postId ?? null,
+        source || 'direct',
+        device || 'desktop',
+        visitorId,
+        viewedOn
+      );
+      return { id, path, postId, source, device, visitorId, viewedOn };
+    },
+    async summary() {
+      const today = utcDayOffset(0);
+      const sevenDayStart = utcDayOffset(6);
+
+      const [todayPv, todayUv, sevenPv, sevenUv, topPages, sourceRows, deviceRows, categoryRows] = await Promise.all([
+        one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on = ?', today),
+        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on = ?', today),
+        one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today),
+        one<{ c: number }>('SELECT COUNT(DISTINCT visitor_id) as c FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ?', sevenDayStart, today),
+        many<{ path: string; pv: number }>(
+          'SELECT path, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY path ORDER BY pv DESC LIMIT 5',
+          sevenDayStart,
+          today
+        ),
+        many<{ source: string; pv: number }>(
+          'SELECT source, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY source ORDER BY pv DESC',
+          sevenDayStart,
+          today
+        ),
+        many<{ device: string; pv: number }>(
+          'SELECT device, COUNT(*) as pv FROM page_view_events WHERE viewed_on >= ? AND viewed_on <= ? GROUP BY device ORDER BY pv DESC',
+          sevenDayStart,
+          today
+        ),
+        many<{ name: string; pv: number }>(
+          `SELECT t.name as name, COUNT(*) as pv
+           FROM page_view_events pve
+           JOIN post_tags pt ON pt.postId = pve.post_id
+           JOIN tags t ON t.id = pt.tagId
+           WHERE pve.viewed_on >= ? AND pve.viewed_on <= ? AND pve.post_id IS NOT NULL
+           GROUP BY t.id, t.name
+           ORDER BY pv DESC
+           LIMIT 5`,
+          sevenDayStart,
+          today
+        )
+      ]);
+
+      return {
+        today: { pv: todayPv?.c ?? 0, uv: todayUv?.c ?? 0 },
+        sevenDays: { pv: sevenPv?.c ?? 0, uv: sevenUv?.c ?? 0 },
+        topPages: topPages || [],
+        sources: sourceRows || [],
+        devices: deviceRows || [],
+        categories: categoryRows || []
+      };
     }
   },
   setting: {

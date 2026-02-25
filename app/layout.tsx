@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+import { CommandPalette } from '@/components/command-palette';
 import { Navbar } from '@/components/navbar';
+import { PageVisitTracker } from '@/components/page-visit-tracker';
 import { WebVitalsReporter } from '@/components/web-vitals-reporter';
 
 function resolveMetadataBase() {
@@ -46,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN">
       <body>
         <WebVitalsReporter />
+        <PageVisitTracker />
+        <CommandPalette />
         <Navbar />
         <main className="container-page">{children}</main>
       </body>
