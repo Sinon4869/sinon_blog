@@ -201,16 +201,16 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
               <p className="max-w-2xl text-sm leading-7 text-zinc-600">{post.excerpt || '写给沉默时刻的短章。'}</p>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-                  <span>{post.author.name || post.author.email}</span>
+                  <span>👤 {post.author.name || post.author.email}</span>
                   <span>·</span>
-                  <span>{formatDate(post.publishedAt || post.createdAt)}</span>
+                  <span>🗓 {formatDate(post.publishedAt || post.createdAt)}</span>
                   <span>·</span>
-                  <span>{post.tags[0]?.tag?.name ? `#${post.tags[0].tag.name}` : '未分类'}</span>
+                  <span>🏷 {post.tags[0]?.tag?.name ? `#${post.tags[0].tag.name}` : '未分类'}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
-                  <span>Word Count: {Math.max(1, htmlToPlainText(post.content).split(/\s+/).filter(Boolean).length)}</span>
-                  <span>Reading Time: {(post as any).reading_time || 1} mins</span>
-                  <span>Post Views: {postViews}</span>
+                  <span>📝 Word Count: {Math.max(1, htmlToPlainText(post.content).split(/\s+/).filter(Boolean).length)}</span>
+                  <span>⏱ Reading Time: {(post as any).reading_time || 1} mins</span>
+                  <span>👁 Post Views: {postViews}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

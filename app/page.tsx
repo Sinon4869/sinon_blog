@@ -161,6 +161,27 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         )}
       </form>
 
+      <section className="card space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="section-kicker">CATEGORIES</p>
+          <p className="text-xs text-zinc-500">轻量筛选</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <Link href={q ? (`/?q=${encodeURIComponent(q)}` as Route) : '/'} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}>
+            全部
+          </Link>
+          {tags.map((t: any) => (
+            <Link
+              key={t.id}
+              href={`/category/${encodeURIComponent(t.slug)}` as Route}
+              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${tag === t.slug ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
+            >
+              #{t.name}
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           {featured && (
@@ -177,9 +198,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 </Link>
                 <p className="line-clamp-3 text-sm leading-7 text-zinc-600">{truncateSummary(featured.excerpt || '暂无摘要', 160)}</p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-                  <span>{formatDate(featured.publishedAt || featured.createdAt)}</span>
+                  <span>🗓 {formatDate(featured.publishedAt || featured.createdAt)}</span>
                   <span>·</span>
-                  <span>{featured.reading_time || 1} min</span>
+                  <span>⏱ {featured.reading_time || 1} min</span>
                   {(featured.tags || []).slice(0, 2).map((t: any) => (
                     <span key={t.tag.id} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-zinc-600">
                       #{t.tag.name}
@@ -214,9 +235,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                       {post.title}
                     </Link>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-                      <span>{formatDate(post.publishedAt || post.createdAt)}</span>
+                      <span>🗓 {formatDate(post.publishedAt || post.createdAt)}</span>
                       <span>·</span>
-                      <span>{post.reading_time || 1} min</span>
+                      <span>⏱ {post.reading_time || 1} min</span>
                       {tagsShown.map((t: any) => (
                         <span key={t.tag.id}>#{t.tag.name}</span>
                       ))}
@@ -261,7 +282,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           )}
         </div>
 
-        <aside className="space-y-3">
+        <aside className="space-y-3 xl:sticky xl:top-24 xl:self-start">
           <section className="card space-y-2">
             <h3 className="text-sm font-semibold text-zinc-700">Recent Posts</h3>
             {recentPosts.length === 0 ? (
