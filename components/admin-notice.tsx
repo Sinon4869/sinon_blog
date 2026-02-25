@@ -8,7 +8,8 @@ export function AdminNotice({ notice, type }: { notice?: string; type?: 'success
   useEffect(() => {
     if (!notice) return;
 
-    const timer = setTimeout(() => setVisible(false), 2600);
+    document.body.classList.remove('modal-open');
+    const timer = setTimeout(() => setVisible(false), 4200);
 
     const url = new URL(window.location.href);
     url.searchParams.delete('notice');
@@ -21,7 +22,7 @@ export function AdminNotice({ notice, type }: { notice?: string; type?: 'success
   if (!notice || !visible) return null;
 
   return (
-    <div className={`admin-notice sticky top-20 z-30 rounded-xl border px-3 py-2 text-sm ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
+    <div className={`admin-notice fixed left-1/2 top-20 z-[130] w-[min(920px,calc(100vw-24px))] -translate-x-1/2 rounded-xl border px-3 py-2 text-sm shadow-lg ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
       {notice}
     </div>
   );
