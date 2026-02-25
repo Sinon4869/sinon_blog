@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { useEffect, useState } from 'react';
 
 const QUICK_ITEMS = [
@@ -35,7 +36,7 @@ export function CommandPalette() {
         <input autoFocus className="input" placeholder="输入命令..." value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="mt-2 space-y-1">
           {items.map((item) => (
-            <Link key={item.href} href={item.href} className="block rounded px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100" onClick={() => setOpen(false)}>
+            <Link key={item.href} href={item.href as Route} className="block rounded px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100" onClick={() => setOpen(false)}>
               {item.label}
             </Link>
           ))}
