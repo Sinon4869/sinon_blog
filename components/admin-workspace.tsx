@@ -124,6 +124,7 @@ export async function AdminWorkspace() {
           <div>
             <label className="mb-1 block text-sm text-zinc-600">站点图标（支持 emoji / 短字符）</label>
             <input className="input" name="siteIcon" defaultValue={siteIcon} placeholder="例如：🌍 或 木" maxLength={8} />
+            <p className="mt-1 text-xs text-zinc-500">用于导航 Logo 与浏览器 favicon。若未立即生效，请强制刷新一次。</p>
           </div>
           <NavCategoriesEditor initialCategories={navCategoryList} />
           <div>
