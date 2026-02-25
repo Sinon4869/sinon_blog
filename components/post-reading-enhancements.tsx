@@ -82,8 +82,8 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-0 z-50 h-1 bg-transparent">
-        <div className="h-full bg-zinc-800 transition-all" style={{ width: `${progress}%` }} />
+      <div className="pointer-events-none fixed right-3 top-1/2 z-30 hidden -translate-y-1/2 rounded-full border border-zinc-300/50 bg-white/45 px-2 py-1 text-[10px] font-medium tracking-wide text-zinc-500/80 backdrop-blur sm:block">
+        {progress}%
       </div>
 
       {hasToc && (

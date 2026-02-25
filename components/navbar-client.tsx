@@ -35,19 +35,42 @@ export function NavbarClient({
 
   useEffect(() => {
     let lastY = window.scrollY;
+    let downDistance = 0;
+    let upDistance = 0;
+
     const onScroll = () => {
       const y = window.scrollY;
       const delta = y - lastY;
       setCompact(y > 20);
+
       if (y < 16) {
         setHidden(false);
-      } else if (delta > 8 && y > 120) {
-        setHidden(true);
-      } else if (delta < -8) {
-        setHidden(false);
+        downDistance = 0;
+        upDistance = 0;
+        lastY = y;
+        return;
       }
+
+      if (delta > 0) {
+        downDistance += delta;
+        upDistance = 0;
+        if (y > 140 && downDistance > 48) {
+          setHidden(true);
+          downDistance = 0;
+        }
+      } else if (delta < 0) {
+        upDistance += -delta;
+        downDistance = 0;
+        // 避免“轻微上划就出现”打断阅读，需要明显回拉才显示
+        if (upDistance > 140 || y < 72) {
+          setHidden(false);
+          upDistance = 0;
+        }
+      }
+
       lastY = y;
     };
+
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
