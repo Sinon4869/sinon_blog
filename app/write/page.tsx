@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { savePost } from '@/app/actions';
 import { WriteEditor } from '@/components/write-editor';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, type Row } from '@/lib/prisma';
 
 export default async function WritePage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   const sp = await searchParams;
@@ -27,7 +27,7 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   return (
     <WriteEditor
       action={savePost}
-      availableCategories={categories.map((t: { name: string }) => t.name)}
+      availableCategories={categories.map((t: Row) => String(t?.name || ''))}
       post={
         {
           id: post.id,
