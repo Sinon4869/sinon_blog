@@ -171,31 +171,49 @@ export async function mergeOrDeleteCategory(formData: FormData) {
   const sourceTagId = formData.get('sourceTagId')?.toString().trim();
   const targetTagId = formData.get('targetTagId')?.toString().trim() || '';
   const mode = formData.get('mode')?.toString().trim() || 'delete';
-  if (!sourceTagId) throw new Error('分类参数不完整');
+  if (!sourceTagId) return;
 
   const source = (await prisma.tag.findUnique({ where: { id: sourceTagId } })) as { id: string } | null;
-  if (!source) throw new Error('分类不存在');
+  if (!source) {
+    revalidatePath('/admin');
+    return;
+  }
 
-  const linked = await prisma.transaction(async (tx) => {
-    const countRow = await tx.one<{ c: number }>('SELECT COUNT(*) as c FROM post_tags WHERE tagId = ?', sourceTagId);
-    return countRow?.c ?? 0;
-  });
+  let linked = 0;
+  try {
+    linked = await prisma.transaction(async (tx) => {
+      const countRow = await tx.one<{ c: number }>('SELECT COUNT(*) as c FROM post_tags WHERE tagId = ?', sourceTagId);
+      return Number(countRow?.c ?? 0);
+    });
+  } catch {
+    revalidatePath('/admin');
+    return;
+  }
 
   if (mode === 'merge') {
-    if (!targetTagId) throw new Error('请选择合并目标分类');
-    if (targetTagId === sourceTagId) throw new Error('不能合并到自身');
+    if (!targetTagId || targetTagId === sourceTagId) return;
 
     const target = (await prisma.tag.findUnique({ where: { id: targetTagId } })) as { id: string } | null;
-    if (!target) throw new Error('目标分类不存在');
+    if (!target) return;
 
-    await prisma.transaction(async (tx) => {
-      await tx.run('INSERT OR IGNORE INTO post_tags (postId, tagId) SELECT postId, ? FROM post_tags WHERE tagId = ?', targetTagId, sourceTagId);
-      await tx.run('DELETE FROM post_tags WHERE tagId = ?', sourceTagId);
-      await tx.run('DELETE FROM tags WHERE id = ?', sourceTagId);
-    });
+    try {
+      await prisma.transaction(async (tx) => {
+        await tx.run('INSERT OR IGNORE INTO post_tags (postId, tagId) SELECT postId, ? FROM post_tags WHERE tagId = ?', targetTagId, sourceTagId);
+        await tx.run('DELETE FROM post_tags WHERE tagId = ?', sourceTagId);
+        await tx.run('DELETE FROM tags WHERE id = ?', sourceTagId);
+      });
+    } catch {
+      revalidatePath('/admin');
+      return;
+    }
   } else {
-    if (linked > 0) throw new Error('该分类下仍有关联文章，请先选择“合并”再删除');
-    await prisma.tag.delete({ where: { id: sourceTagId } });
+    if (linked > 0) return;
+    try {
+      await prisma.tag.delete({ where: { id: sourceTagId } });
+    } catch {
+      revalidatePath('/admin');
+      return;
+    }
   }
 
   revalidatePath('/admin');
