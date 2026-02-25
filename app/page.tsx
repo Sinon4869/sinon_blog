@@ -185,7 +185,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           {featured && (
-            <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 sm:grid sm:grid-cols-[1.05fr_1.15fr]">
+            <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/72 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-[1.05fr_1.15fr]">
               {featured.cover_image ? (
                 <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-full" />
               ) : (
@@ -193,7 +193,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               )}
               <div className="space-y-3 p-5 sm:p-7">
                 <p className="section-kicker">FEATURED NOTE</p>
-                <Link href={buildPostPath(featured) as Route} className="line-clamp-2 block text-2xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-3xl">
+                <Link href={buildPostPath(featured) as Route} className="line-clamp-2 block text-2xl font-semibold leading-tight text-zinc-800 hover:opacity-80 sm:text-[2rem]">
                   {featured.title}
                 </Link>
                 <p className="line-clamp-3 text-sm leading-7 text-zinc-600">{truncateSummary(featured.excerpt || '暂无摘要', 160)}</p>
@@ -219,11 +219,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               const tagsShown = (post.tags || []).slice(0, 3);
               const extraCount = Math.max(0, (post.tags || []).length - tagsShown.length);
               return (
-                <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-2">
+                <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-[1.05fr_0.95fr]">
                   {showLeftImage && (
                     <Link href={cardHref} className="block">
                       {post.cover_image ? (
-                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-52 w-full object-cover sm:h-full" />
+                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
                       ) : (
                         <div className="h-52 bg-zinc-200 sm:h-full" />
                       )}
@@ -243,13 +243,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                       ))}
                       {extraCount > 0 && <span>+{extraCount}</span>}
                     </div>
-                    <p className="line-clamp-3 text-sm leading-7 text-zinc-600">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
+                    <p className="line-clamp-2 text-sm leading-7 text-zinc-600 sm:line-clamp-3">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
                   </div>
 
                   {!showLeftImage && (
                     <Link href={cardHref} className="block">
                       {post.cover_image ? (
-                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-52 w-full object-cover sm:h-full" />
+                        <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
                       ) : (
                         <div className="h-52 bg-zinc-200 sm:h-full" />
                       )}
@@ -284,7 +284,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
         <aside className="space-y-3 xl:sticky xl:top-24 xl:self-start">
           <section className="card space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-700">Recent Posts</h3>
+            <h3 className="text-sm font-semibold text-zinc-700">最近文章</h3>
             {recentPosts.length === 0 ? (
               <p className="text-sm text-zinc-500">暂无数据</p>
             ) : (
@@ -305,7 +305,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </section>
 
           <section className="card space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-700">Categories</h3>
+            <h3 className="text-sm font-semibold text-zinc-700">分类</h3>
             {(categoryStats || []).slice(0, 8).map((c: any) => (
               <div key={c.id} className="flex items-center justify-between text-sm">
                 <Link href={`/category/${encodeURIComponent(c.slug)}` as Route} className="text-zinc-700 hover:underline">
@@ -317,7 +317,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </section>
 
           <section className="card space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-700">Tags</h3>
+            <h3 className="text-sm font-semibold text-zinc-700">标签</h3>
             <div className="flex flex-wrap gap-2">
               {tags.slice(0, 20).map((t: any) => (
                 <Link key={t.id} href={`/category/${encodeURIComponent(t.slug)}` as Route} className="rounded-full border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100">
@@ -329,9 +329,30 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
           {(intro.name || intro.bio || intro.links.length > 0) && (
             <section className="card space-y-2">
+              <h3 className="text-sm font-semibold text-zinc-700">站点信息</h3>
+              <div className="space-y-1 text-xs text-zinc-600">
+                <p>文章数：{total}</p>
+                <p>7d PV：{analytics.sevenDays?.pv ?? 0}</p>
+                <p>7d UV：{analytics.sevenDays?.uv ?? 0}</p>
+                <p>最近更新：{updatedAt ? formatDate(updatedAt) : '-'}</p>
+              </div>
+            </section>
+          )}
+
+          {(intro.name || intro.bio || intro.links.length > 0) && (
+            <section className="card space-y-2">
               <h3 className="text-sm font-semibold text-zinc-700">About</h3>
               <p className="text-sm font-medium text-zinc-800">{intro.name || '作者'}</p>
               <p className="text-xs leading-6 text-zinc-600">{intro.bio || '欢迎来到这里。'}</p>
+              {intro.links.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {intro.links.slice(0, 4).map((l) => (
+                    <a key={l.label} href={l.url} target="_blank" rel="noreferrer" className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </aside>
