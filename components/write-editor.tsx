@@ -77,6 +77,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     .map((i) => i.trim())
     .filter(Boolean);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelected);
+  const [categoryToAdd, setCategoryToAdd] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
@@ -171,8 +172,15 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     }
   }
 
-  function toggleCategory(name: string) {
-    setSelectedCategories((prev) => (prev.includes(name) ? prev.filter((v) => v !== name) : [...prev, name]));
+  function addSelectedCategory() {
+    const value = categoryToAdd.trim();
+    if (!value) return;
+    setSelectedCategories((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setCategoryToAdd('');
+  }
+
+  function removeCategory(name: string) {
+    setSelectedCategories((prev) => prev.filter((v) => v !== name));
   }
 
   function addCustomCategory() {
@@ -216,24 +224,39 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
           <input type="hidden" name="tags" value={tags} />
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">选择分类（可多选）</p>
+            <p className="text-sm font-medium text-zinc-700">分类（下拉选择）</p>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select className="input" value={categoryToAdd} onChange={(e) => setCategoryToAdd(e.target.value)}>
+                <option value="">请选择分类</option>
+                {normalizedOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                onClick={addSelectedCategory}
+              >
+                添加到文章
+              </button>
+            </div>
+
             <div className="flex flex-wrap gap-2">
-              {normalizedOptions.length === 0 && <span className="text-xs text-zinc-500">暂无可选分类，请先新增一个分类。</span>}
-              {normalizedOptions.map((name) => {
-                const active = selectedCategories.includes(name);
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => toggleCategory(name)}
-                    className={`rounded-full border px-3 py-1 text-xs tracking-wide transition ${
-                      active ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700 hover:bg-zinc-100'
-                    }`}
-                  >
-                    #{name}
-                  </button>
-                );
-              })}
+              {selectedCategories.length === 0 && <span className="text-xs text-zinc-500">尚未选择分类</span>}
+              {selectedCategories.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => removeCategory(name)}
+                  className="rounded-full border border-[var(--bg-ink)] bg-[var(--bg-ink)] px-3 py-1 text-xs tracking-wide text-white"
+                  title="点击移除"
+                >
+                  #{name} ×
+                </button>
+              ))}
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -241,7 +264,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
                 className="input"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="新增分类（可选）"
+                placeholder="没有合适分类？新增一个"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -254,7 +277,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
                 className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
                 onClick={addCustomCategory}
               >
-                添加分类
+                新增并选中
               </button>
             </div>
           </div>
