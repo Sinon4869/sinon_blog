@@ -22,9 +22,12 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
     redirect('/dashboard');
   }
 
+  const categories = await prisma.tag.findMany({ take: 40 });
+
   return (
     <WriteEditor
       action={savePost}
+      availableCategories={categories.map((t: { name: string }) => t.name)}
       post={
         {
           id: post.id,

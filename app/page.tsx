@@ -125,25 +125,31 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         )}
       </form>
 
-      <section className="flex flex-wrap gap-2">
-        <Link
-          href={q ? `/?q=${encodeURIComponent(q)}` : '/'}
-          className={`rounded-full border px-3 py-1 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
-        >
-          全部
-        </Link>
-        {tags.map((t) => {
-          const href = q ? `/?q=${encodeURIComponent(q)}&tag=${t.slug}` : `/?tag=${t.slug}`;
-          return (
-            <Link
-              key={t.id}
-              href={href as Route}
-              className={`rounded-full border px-3 py-1 text-xs tracking-wide ${tag === t.slug ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
-            >
-              #{t.name}
-            </Link>
-          );
-        })}
+      <section className="card space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs tracking-[0.2em] text-zinc-500">CATEGORIES</p>
+          <p className="text-xs text-zinc-500">共 {tags.length} 个分类</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <Link
+            href={q ? `/?q=${encodeURIComponent(q)}` : '/'}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
+          >
+            全部
+          </Link>
+          {tags.map((t) => {
+            const href = q ? `/?q=${encodeURIComponent(q)}&tag=${t.slug}` : `/?tag=${t.slug}`;
+            return (
+              <Link
+                key={t.id}
+                href={href as Route}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${tag === t.slug ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}
+              >
+                #{t.name}
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       {featured && (

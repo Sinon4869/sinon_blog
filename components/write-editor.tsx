@@ -22,6 +22,7 @@ type WriteEditorProps = {
     coverImage?: string;
     backgroundImage?: string;
   };
+  availableCategories?: string[];
 };
 
 function looksLikeHtml(input: string) {
@@ -68,10 +69,15 @@ function todayLabel() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function WriteEditor({ action, post }: WriteEditorProps) {
+export function WriteEditor({ action, post, availableCategories = [] }: WriteEditorProps) {
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
-  const [tags, setTags] = useState(post?.tags || '');
+  const initialSelected = (post?.tags || '')
+    .split(',')
+    .map((i) => i.trim())
+    .filter(Boolean);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelected);
+  const [newCategory, setNewCategory] = useState('');
   const [coverImage, setCoverImage] = useState(post?.coverImage || '');
   const [backgroundImage, setBackgroundImage] = useState(post?.backgroundImage || '');
   const [uploading, setUploading] = useState(false);
@@ -80,6 +86,9 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [contentHtml, setContentHtml] = useState('');
+
+  const normalizedOptions = Array.from(new Set([...(availableCategories || []).map((v) => v.trim()).filter(Boolean), ...selectedCategories]));
+  const tags = selectedCategories.join(',');
 
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
@@ -162,6 +171,17 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
     }
   }
 
+  function toggleCategory(name: string) {
+    setSelectedCategories((prev) => (prev.includes(name) ? prev.filter((v) => v !== name) : [...prev, name]));
+  }
+
+  function addCustomCategory() {
+    const value = newCategory.trim();
+    if (!value) return;
+    setSelectedCategories((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setNewCategory('');
+  }
+
   function openPublishPreview() {
     const titleValue = title.trim();
     if (!titleValue || !hasMeaningfulHtmlContent(contentHtml)) {
@@ -193,7 +213,51 @@ export function WriteEditor({ action, post }: WriteEditorProps) {
         <div className="card space-y-3">
           <input className="input text-lg font-semibold" name="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="文章标题" required />
           <input className="input" name="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="一句话摘要（可选）" />
-          <input className="input" name="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="标签，逗号分隔（可选）" />
+          <input type="hidden" name="tags" value={tags} />
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-zinc-700">选择分类（可多选）</p>
+            <div className="flex flex-wrap gap-2">
+              {normalizedOptions.length === 0 && <span className="text-xs text-zinc-500">暂无可选分类，请先新增一个分类。</span>}
+              {normalizedOptions.map((name) => {
+                const active = selectedCategories.includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => toggleCategory(name)}
+                    className={`rounded-full border px-3 py-1 text-xs tracking-wide transition ${
+                      active ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700 hover:bg-zinc-100'
+                    }`}
+                  >
+                    #{name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                className="input"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="新增分类（可选）"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomCategory();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                onClick={addCustomCategory}
+              >
+                添加分类
+              </button>
+            </div>
+          </div>
         </div>
 
         <details className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-4">
