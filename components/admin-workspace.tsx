@@ -2,6 +2,7 @@ import { createCategory, mergeOrDeleteCategory, renameCategory, savePersonalIntr
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { AdminUserTable } from '@/components/admin-user-table';
 import { SiteIconConfigField } from '@/components/site-icon-config-field';
+import { AdminNotice } from '@/components/admin-notice';
 import { prisma } from '@/lib/prisma';
 import { ANONYMOUS_USER_EMAIL, SETTING_KEYS, SUPER_ADMIN_EMAIL } from '@/lib/site-settings';
 
@@ -22,7 +23,7 @@ type CategoryItem = {
 };
 
 
-export async function AdminWorkspace({ notice, type }: { notice?: string; type?: string } = {}) {
+export async function AdminWorkspace({ notice, type }: { notice?: string; type?: 'success' | 'error' } = {}) {
   const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, siteIconSetting, siteIconUrlSetting] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
@@ -88,11 +89,7 @@ export async function AdminWorkspace({ notice, type }: { notice?: string; type?:
 
   return (
     <div className="space-y-4">
-      {notice && (
-        <div className={`admin-notice sticky top-20 z-30 rounded-xl border px-3 py-2 text-sm ${type === 'error' ? 'border-red-300 bg-red-50 text-red-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
-          {notice}
-        </div>
-      )}
+      <AdminNotice notice={notice} type={type} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card">用户总数：{users}</div>
         <div className="card">文章总数：{posts}</div>
