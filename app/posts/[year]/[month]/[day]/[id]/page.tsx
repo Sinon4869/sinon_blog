@@ -9,7 +9,7 @@ import { toggleFavorite } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
 import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
-import { isAnonymousCommentEnabled } from '@/lib/site-settings';
+import { getPersonalIntro, isAnonymousCommentEnabled } from '@/lib/site-settings';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 async function findPostById(id: string) {
@@ -93,7 +93,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const image = (post as any).cover_image || (post as any).background_image || undefined;
   const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);
 
-  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw] = await Promise.all([
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
     prisma.tag.findMany({}).then((rows) => rows.length),
     isAnonymousCommentEnabled(),
@@ -123,7 +123,8 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             createdAt: true,
             tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
           }
-        })
+        }),
+    getPersonalIntro()
   ]);
 
   const relatedPosts = (relatedRaw || []).filter((p: any) => p.id !== post.id).slice(0, 4);
@@ -279,21 +280,30 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             <div className="space-y-4 p-4">
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 overflow-hidden rounded-xl border border-white bg-zinc-100 shadow-sm">
-                {post.author.image ? (
-                  <SmartImage src={post.author.image} alt={post.author.name || post.author.email} width={64} height={64} className="h-full w-full object-cover" />
+                {(personalIntro.avatar || post.author.image) ? (
+                  <SmartImage src={personalIntro.avatar || post.author.image} alt={personalIntro.name || post.author.name || post.author.email} width={64} height={64} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-lg text-zinc-600">
-                    {(post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
+                    {(personalIntro.name || post.author.name || post.author.email || '?').slice(0, 1).toUpperCase()}
                   </div>
                 )}
               </div>
                 <div className="min-w-0">
-                  <h4 className="truncate text-xl font-semibold text-zinc-800">{post.author.name || '匿名作者'}</h4>
+                  <h4 className="truncate text-xl font-semibold text-zinc-800">{personalIntro.name || post.author.name || '匿名作者'}</h4>
                   <p className="text-xs tracking-[0.16em] text-zinc-500">持续写作记录</p>
                 </div>
               </div>
 
-              <p className="text-sm leading-7 text-zinc-600">{post.author.bio || '热爱写作，持续输出。'}</p>
+              <p className="text-sm leading-7 text-zinc-600">{personalIntro.bio || post.author.bio || '热爱写作，持续输出。'}</p>
+              {personalIntro.links?.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {personalIntro.links.map((l) => (
+                    <a key={l.label} href={l.url} className="rounded border border-[var(--line-soft)] bg-white/70 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100" target="_blank" rel="noreferrer">
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-2 rounded-xl border border-[var(--line-soft)] bg-white/70 p-3">
                 <div className="flex items-center justify-between">

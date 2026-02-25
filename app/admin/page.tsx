@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
-import { mergeOrDeleteCategory, renameCategory, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
+import { mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { AdminUserTable } from '@/components/admin-user-table';
@@ -29,7 +29,7 @@ export default async function AdminPage() {
   if (!session?.user) redirect('/login');
   if (session.user.role !== 'ADMIN') redirect('/');
 
-  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw] = await Promise.all([
+  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -40,7 +40,11 @@ export default async function AdminPage() {
     prisma.auditLog.findMany({ take: 20 }),
     prisma.setting.get(SETTING_KEYS.registrationEnabled),
     prisma.setting.get(SETTING_KEYS.anonymousCommentEnabled),
-    prisma.tag.adminList()
+    prisma.tag.adminList(),
+    prisma.setting.get(SETTING_KEYS.profileName),
+    prisma.setting.get(SETTING_KEYS.profileBio),
+    prisma.setting.get(SETTING_KEYS.profileAvatar),
+    prisma.setting.get(SETTING_KEYS.profileLinks)
   ]);
   const registrationEnabled = !registrationSetting || registrationSetting.value !== '0';
   const anonymousCommentEnabled = !!anonymousSetting && anonymousSetting.value === '1';
@@ -67,6 +71,20 @@ export default async function AdminPage() {
     post_count: Number(c.post_count || 0)
   }));
 
+  let introLinksParsed: Array<{ label: string; url: string }> = [];
+  try {
+    const parsed = JSON.parse(String((introLinks as { value?: string } | null)?.value || '[]'));
+    if (Array.isArray(parsed)) {
+      introLinksParsed = parsed
+        .map((x) => ({ label: String(x?.label || ''), url: String(x?.url || '') }))
+        .filter((x) => x.label && x.url);
+    }
+  } catch {}
+
+  const website = introLinksParsed.find((x) => x.label === '网站')?.url || '';
+  const github = introLinksParsed.find((x) => x.label === 'GitHub')?.url || '';
+  const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
+
   return (
     <div className="space-y-3">
       <h1 className="text-2xl font-bold">后台管理</h1>
@@ -91,6 +109,23 @@ export default async function AdminPage() {
           </ConfirmSubmitButton>
         </form>
       </div>
+      <div className="card space-y-3">
+        <h2 className="text-lg font-semibold">个人介绍管理</h2>
+        <form action={savePersonalIntroConfig} className="space-y-3">
+          <input className="input" name="profileName" defaultValue={String((introName as { value?: string } | null)?.value || '')} placeholder="展示名称" />
+          <textarea className="input min-h-24" name="profileBio" defaultValue={String((introBio as { value?: string } | null)?.value || '')} placeholder="个人介绍" />
+          <input className="input" name="profileAvatar" defaultValue={String((introAvatar as { value?: string } | null)?.value || '')} placeholder="头像 URL（http/https）" />
+          <div className="grid gap-2 md:grid-cols-3">
+            <input className="input" name="profileWebsite" defaultValue={website} placeholder="网站链接" />
+            <input className="input" name="profileGithub" defaultValue={github} placeholder="GitHub 链接" />
+            <input className="input" name="profileX" defaultValue={xUrl} placeholder="X 链接" />
+          </div>
+          <ConfirmSubmitButton className="btn" confirmText="确认保存个人介绍配置？">
+            保存个人介绍
+          </ConfirmSubmitButton>
+        </form>
+      </div>
+
       <div className="card space-y-2">
         <h2 className="text-lg font-semibold">用户管理</h2>
         <p className="text-sm text-zinc-500">超级管理员账号 {SUPER_ADMIN_EMAIL} 固定为 ADMIN，不可降权、禁用或删除。</p>

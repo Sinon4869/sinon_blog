@@ -167,6 +167,42 @@ export async function saveSiteConfig(formData: FormData) {
   revalidatePath('/dashboard');
 }
 
+export async function savePersonalIntroConfig(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可修改个人介绍配置');
+
+  const name = sanitizeText(formData.get('profileName')?.toString() || '', 50).trim();
+  const bio = sanitizeText(formData.get('profileBio')?.toString() || '', 300).trim();
+  const avatar = sanitizeText(formData.get('profileAvatar')?.toString() || '', 2000).trim();
+  const website = sanitizeText(formData.get('profileWebsite')?.toString() || '', 2000).trim();
+  const github = sanitizeText(formData.get('profileGithub')?.toString() || '', 2000).trim();
+  const x = sanitizeText(formData.get('profileX')?.toString() || '', 2000).trim();
+
+  const urlFields = [
+    { label: '网站', url: website },
+    { label: 'GitHub', url: github },
+    { label: 'X', url: x }
+  ].filter((i) => i.url);
+
+  for (const item of [avatar, ...urlFields.map((i) => i.url)]) {
+    if (!item) continue;
+    try {
+      const u = new URL(item);
+      if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid');
+    } catch {
+      throw new Error('链接格式无效，请使用 http/https 完整链接');
+    }
+  }
+
+  await prisma.setting.set(SETTING_KEYS.profileName, name);
+  await prisma.setting.set(SETTING_KEYS.profileBio, bio);
+  await prisma.setting.set(SETTING_KEYS.profileAvatar, avatar);
+  await prisma.setting.set(SETTING_KEYS.profileLinks, JSON.stringify(urlFields));
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+}
+
 export async function saveUserSystemConfig(formData: FormData) {
   const user = await requireUser();
   if (user.role !== 'ADMIN') throw new Error('仅管理员可修改用户系统配置');

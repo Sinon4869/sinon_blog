@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 
 import { prisma } from '@/lib/prisma';
+import { getPersonalIntro } from '@/lib/site-settings';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 8;
@@ -50,8 +51,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   let posts: any[] = [];
   let total = 0;
   let tags: any[] = [];
+  let intro = { name: '', bio: '', avatar: '', links: [] as Array<{ label: string; url: string }> };
   try {
-    [posts, total, tags] = await Promise.all([
+    [posts, total, tags, intro] = await Promise.all([
       prisma.post.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
@@ -74,12 +76,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         orderBy: { name: 'asc' },
         select: { id: true, name: true, slug: true },
         take: 24
-      })
+      }),
+      getPersonalIntro()
     ]);
   } catch {
     posts = [];
     total = 0;
     tags = [];
+    intro = { name: '', bio: '', avatar: '', links: [] };
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -109,6 +113,22 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </div>
           </div>
           <p className="mt-3 text-sm leading-7 text-zinc-600">筛选分类或搜索关键词，快速进入你想读的文章。</p>
+          {(intro.name || intro.bio || intro.links.length > 0) && (
+            <div className="mt-4 rounded-lg border border-[var(--line-soft)] bg-white/75 p-3">
+              <p className="text-[11px] tracking-wide text-zinc-500">ABOUT</p>
+              <p className="mt-1 text-sm font-medium text-zinc-800">{intro.name || '作者'}</p>
+              <p className="mt-1 text-xs leading-6 text-zinc-600">{intro.bio || '欢迎来到这里。'}</p>
+              {intro.links.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {intro.links.map((l) => (
+                    <a key={l.label} href={l.url} className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100" target="_blank" rel="noreferrer">
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </section>
 
