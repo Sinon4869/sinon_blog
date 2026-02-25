@@ -185,11 +185,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           {featured && (
-            <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/72 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-[1.05fr_1.15fr]">
+            <article className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/72 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:min-h-[320px] sm:grid-cols-[1.05fr_1.15fr]">
               {featured.cover_image ? (
-                <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-full" />
+                <SmartImage src={featured.cover_image} alt={featured.title} width={1200} height={700} className="h-56 w-full object-cover sm:h-[320px]" />
               ) : (
-                <div className="h-56 bg-zinc-200 sm:h-full" />
+                <div className="h-56 bg-zinc-200 sm:h-[320px]" />
               )}
               <div className="space-y-3 p-5 sm:p-7">
                 <p className="section-kicker">FEATURED NOTE</p>
@@ -218,16 +218,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               const tagsShown = (post.tags || []).slice(0, 3);
               const extraCount = Math.max(0, (post.tags || []).length - tagsShown.length);
               return (
-                <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:grid-cols-[1.05fr_0.95fr]">
+                <article key={post.id} className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/70 transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md hover:shadow-zinc-900/10 sm:grid sm:min-h-[236px] sm:grid-cols-[1.05fr_0.95fr]">
                   <Link href={cardHref} className="block">
                     {post.cover_image ? (
-                      <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-full" />
+                      <SmartImage src={post.cover_image} alt={post.title} width={900} height={560} className="h-48 w-full object-cover sm:h-[236px]" />
                     ) : (
-                      <div className="h-52 bg-zinc-200 sm:h-full" />
+                      <div className="h-48 bg-zinc-200 sm:h-[236px]" />
                     )}
                   </Link>
 
-                  <div className="space-y-2 p-4 sm:p-5">
+                  <div className="flex h-full flex-col justify-center space-y-2 p-4 sm:p-5">
                     <Link href={cardHref} className="block line-clamp-2 text-xl font-semibold leading-snug text-zinc-800 hover:opacity-80">
                       {post.title}
                     </Link>
@@ -276,7 +276,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               <p className="text-sm text-zinc-500">暂无数据</p>
             ) : (
               recentPosts.map((p: any) => (
-                <Link key={p.id} href={buildPostPath(p) as Route} className="flex items-center gap-2 rounded-lg border border-[var(--line-soft)] bg-white/70 p-2 hover:bg-white">
+                <Link key={p.id} href={buildPostPath(p) as Route} className="flex h-16 items-center gap-2 rounded-lg border border-[var(--line-soft)] bg-white/70 p-2 hover:bg-white">
                   {p.cover_image ? (
                     <SmartImage src={p.cover_image} alt={p.title} width={96} height={72} className="h-12 w-16 rounded object-cover" />
                   ) : (
