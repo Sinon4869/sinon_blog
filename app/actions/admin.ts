@@ -90,6 +90,34 @@ export async function saveUserSystemConfig(formData: FormData) {
   revalidatePath('/register');
 }
 
+export async function createCategory(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
+
+  const name = sanitizeText(formData.get('name')?.toString() || '', 50).trim();
+  if (!name) throw new Error('请输入分类名称');
+
+  const baseSlug = slugify(name);
+  if (!baseSlug) throw new Error('分类名称无效');
+
+  let nextSlug = baseSlug;
+  let i = 2;
+  while (true) {
+    const found = (await prisma.tag.findUnique({ where: { slug: nextSlug } })) as { id: string } | null;
+    if (!found) break;
+    nextSlug = `${baseSlug}-${i}`;
+    i += 1;
+  }
+
+  await prisma.tag.upsert({
+    where: { slug: nextSlug },
+    update: { name },
+    create: { name, slug: nextSlug, sort_order: 0 }
+  });
+  revalidatePath('/admin');
+  revalidatePath('/');
+}
+
 export async function updateCategoryOrder(formData: FormData) {
   const user = await requireUser();
   if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');

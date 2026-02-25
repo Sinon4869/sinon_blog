@@ -1,5 +1,6 @@
-import { mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
+import { createCategory, mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
+import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { AdminUserTable } from '@/components/admin-user-table';
 import { prisma } from '@/lib/prisma';
 import { ANONYMOUS_USER_EMAIL, SETTING_KEYS, SUPER_ADMIN_EMAIL } from '@/lib/site-settings';
@@ -20,8 +21,27 @@ type CategoryItem = {
   post_count: number;
 };
 
+function parseConfiguredCategories(value: string) {
+  const raw = value.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 20);
+    }
+  } catch {}
+  return raw
+    .split(/[\n,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 export async function AdminWorkspace() {
-  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks] = await Promise.all([
+  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, navCategoriesSetting] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -36,7 +56,9 @@ export async function AdminWorkspace() {
     prisma.setting.get(SETTING_KEYS.profileName),
     prisma.setting.get(SETTING_KEYS.profileBio),
     prisma.setting.get(SETTING_KEYS.profileAvatar),
-    prisma.setting.get(SETTING_KEYS.profileLinks)
+    prisma.setting.get(SETTING_KEYS.profileLinks),
+    prisma.setting.get(SETTING_KEYS.siteTitle),
+    prisma.setting.get(SETTING_KEYS.navCategories)
   ]);
 
   const registrationEnabled = !registrationSetting || registrationSetting.value !== '0';
@@ -77,6 +99,9 @@ export async function AdminWorkspace() {
   const website = introLinksParsed.find((x) => x.label === '网站')?.url || '';
   const github = introLinksParsed.find((x) => x.label === 'GitHub')?.url || '';
   const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
+  const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
+  const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
+  const navCategoryList = parseConfiguredCategories(navCategories);
 
   return (
     <div className="space-y-4">
@@ -84,6 +109,23 @@ export async function AdminWorkspace() {
         <div className="card">用户总数：{users}</div>
         <div className="card">文章总数：{posts}</div>
         <div className="card">评论总数：{comments}</div>
+      </div>
+
+
+      <div className="card space-y-3">
+        <h2 className="text-lg font-semibold">站点与导航配置</h2>
+        <form action={saveSiteConfig} className="grid gap-3">
+          <div>
+            <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
+            <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
+          </div>
+          <NavCategoriesEditor initialCategories={navCategoryList} />
+          <div>
+            <ConfirmSubmitButton className="btn" confirmText="确认保存站点与导航配置？">
+              保存配置
+            </ConfirmSubmitButton>
+          </div>
+        </form>
       </div>
 
       <div className="card space-y-3">
@@ -128,11 +170,19 @@ export async function AdminWorkspace() {
 
       <div className="card space-y-3">
         <h2 className="text-lg font-semibold">分类管理中心</h2>
-        <p className="text-sm text-zinc-500">支持重命名、合并、删除与排序。删除含文章分类前，请先合并到目标分类。</p>
+        <p className="text-sm text-zinc-500">分类创建、重命名、合并、删除与排序统一在这里管理。</p>
+
+        <form action={createCategory} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input className="input" name="name" placeholder="输入新分类名称，例如：产品复盘" />
+          <ConfirmSubmitButton className="btn" confirmText="确认创建该分类？">
+            创建分类
+          </ConfirmSubmitButton>
+        </form>
+
         <div className="space-y-3">
           {categories.length === 0 && <p className="text-sm text-zinc-500">暂无分类</p>}
           {categories.map((cat) => (
-            <div key={cat.id} className="space-y-2 rounded-xl border border-[var(--line-soft)] bg-white p-3">
+            <div key={cat.id} className="space-y-3 rounded-2xl border border-[var(--line-soft)] bg-white/85 p-4">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium text-zinc-800">#{cat.name}</span>
                 <span className="text-zinc-500">slug: {cat.slug}</span>
@@ -143,7 +193,7 @@ export async function AdminWorkspace() {
                 <form action={renameCategory} className="flex gap-2">
                   <input type="hidden" name="tagId" value={cat.id} />
                   <input className="input" name="nextName" defaultValue={cat.name} placeholder="新分类名" />
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认重命名该分类？">
+                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认重命名该分类？">
                     重命名
                   </ConfirmSubmitButton>
                 </form>
@@ -151,7 +201,7 @@ export async function AdminWorkspace() {
                 <form action={updateCategoryOrder} className="flex gap-2">
                   <input type="hidden" name="tagId" value={cat.id} />
                   <input className="input" name="sortOrder" type="number" defaultValue={cat.sort_order} />
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认更新排序？">
+                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认更新排序？">
                     排序
                   </ConfirmSubmitButton>
                 </form>
@@ -169,7 +219,7 @@ export async function AdminWorkspace() {
                         </option>
                       ))}
                   </select>
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认合并该分类到目标分类？">
+                  <ConfirmSubmitButton className="btn-secondary text-xs" confirmText="确认合并该分类到目标分类？">
                     合并
                   </ConfirmSubmitButton>
                 </form>
@@ -178,7 +228,7 @@ export async function AdminWorkspace() {
               <form action={mergeOrDeleteCategory}>
                 <input type="hidden" name="sourceTagId" value={cat.id} />
                 <input type="hidden" name="mode" value="delete" />
-                <ConfirmSubmitButton className="rounded border border-red-300 px-3 py-2 text-xs text-red-700" confirmText="确认删除该分类？若存在文章关联将被拦截。">
+                <ConfirmSubmitButton className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 hover:bg-red-100" confirmText="确认删除该分类？若存在文章关联将被拦截。">
                   删除分类
                 </ConfirmSubmitButton>
               </form>

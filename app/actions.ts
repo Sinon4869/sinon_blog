@@ -3,6 +3,7 @@ export {
   saveSiteConfig,
   savePersonalIntroConfig,
   saveUserSystemConfig,
+  createCategory,
   updateCategoryOrder,
   renameCategory,
   mergeOrDeleteCategory
