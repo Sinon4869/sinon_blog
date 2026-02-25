@@ -5,6 +5,7 @@ export {
   saveUserSystemConfig,
   createCategory,
   updateCategoryOrder,
+  updateCategoryOrderBatch,
   renameCategory,
   mergeOrDeleteCategory
 } from '@/app/actions/admin';

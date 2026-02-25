@@ -148,6 +148,37 @@ export async function updateCategoryOrder(formData: FormData) {
   redirectAdminNotice('分类排序已更新', 'success', 'category-center');
 }
 
+export async function updateCategoryOrderBatch(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
+
+  const raw = formData.get('categoryOrderJson')?.toString() || '[]';
+  let items: Array<{ id: string; sortOrder: number }> = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      items = parsed
+        .map((x) => ({ id: String(x?.id || '').trim(), sortOrder: Number(x?.sortOrder ?? 0) }))
+        .filter((x) => x.id && Number.isFinite(x.sortOrder))
+        .slice(0, 200);
+    }
+  } catch {
+    redirectAdminNotice('排序数据格式错误', 'error', 'category-center');
+  }
+
+  if (!items.length) redirectAdminNotice('没有可保存的排序变更', 'error', 'category-center');
+
+  await prisma.transaction(async (tx) => {
+    for (const item of items) {
+      await tx.run('UPDATE tags SET sort_order = ? WHERE id = ?', item.sortOrder, item.id);
+    }
+  });
+
+  revalidatePath('/admin');
+  revalidatePath('/');
+  redirectAdminNotice('拖拽排序已保存', 'success', 'category-center');
+}
+
 export async function renameCategory(formData: FormData) {
   const user = await requireUser();
   if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
