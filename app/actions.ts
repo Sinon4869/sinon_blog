@@ -1,5 +1,3 @@
-'use server';
-
 export { savePost, deletePost, setPostPublished } from '@/app/actions/post';
 export {
   saveSiteConfig,
