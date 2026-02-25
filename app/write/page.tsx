@@ -25,11 +25,16 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   const categories = await prisma.tag.findMany({ take: 40 });
 
   return (
-    <WriteEditor
-      action={savePost}
-      availableCategories={categories.map((t: Row) => String(t?.name || ''))}
-      post={
-        {
+    <div className="space-y-4">
+      <section className="hero-panel p-5 sm:p-6">
+        <p className="section-kicker">WRITER</p>
+        <h1 className="mt-2 text-2xl font-semibold text-zinc-800 sm:text-3xl">编辑文章</h1>
+      </section>
+
+      <WriteEditor
+        action={savePost}
+        availableCategories={categories.map((t: Row) => String(t?.name || ''))}
+        post={{
           id: post.id,
           title: post.title,
           excerpt: post.excerpt || '',
@@ -38,8 +43,8 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
           tags: post.tags.map((t: { tag: { name: string } }) => t.tag.name).join(','),
           coverImage: (post as { cover_image?: string | null }).cover_image || '',
           backgroundImage: (post as { background_image?: string | null }).background_image || ''
-        }
-      }
-    />
+        }}
+      />
+    </div>
   );
 }

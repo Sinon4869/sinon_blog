@@ -106,10 +106,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--line-soft)] bg-white/60 p-5 sm:p-6">
+      <section className="hero-panel p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs tracking-[0.25em] text-zinc-500">DASHBOARD</p>
+            <p className="section-kicker">DASHBOARD</p>
             <h1 className="mt-2 text-2xl font-semibold text-zinc-800 sm:text-3xl">文章管理控制台</h1>
           </div>
           <form action="/write/new" method="get">
@@ -175,7 +175,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           筛选
         </button>
         {(q || status !== 'all') && (
-          <Link className="rounded-md border border-[var(--line-strong)] px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100" href="/dashboard">
+          <Link className="btn-secondary" href="/dashboard">
             重置
           </Link>
         )}

@@ -201,11 +201,11 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
           <PostReadingEnhancements containerId="post-content" />
           <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
-              <p className="text-xs tracking-[0.2em] text-zinc-500">正文</p>
+              <p className="section-kicker">正文</p>
               {session?.user && (
                 <form action={toggleFavorite}>
                   <input type="hidden" name="postId" value={post.id} />
-                  <button className="rounded-md border border-[var(--line-strong)] bg-[var(--bg-ink)] px-3 py-1.5 text-xs text-white hover:opacity-90" type="submit">
+                  <button className="btn-secondary" type="submit">
                     {favorited ? '取消收藏' : '收藏文章'}
                   </button>
                 </form>

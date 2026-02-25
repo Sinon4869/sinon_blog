@@ -47,11 +47,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN">
       <body>
-        <WebVitalsReporter />
-        <PageVisitTracker />
-        <CommandPalette />
-        <Navbar />
-        <main className="container-page">{children}</main>
+        <div className="page-shell min-h-screen">
+          <WebVitalsReporter />
+          <PageVisitTracker />
+          <CommandPalette />
+          <Navbar />
+          <main className="container-page">{children}</main>
+        </div>
       </body>
     </html>
   );
