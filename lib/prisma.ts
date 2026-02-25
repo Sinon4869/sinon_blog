@@ -391,8 +391,25 @@ export const prisma = {
     }
   },
   tag: {
-    async findMany(_args?: any) {
-      return many('SELECT id, name, slug FROM tags ORDER BY name ASC LIMIT 30');
+    async findMany(args: any = {}) {
+      const take = Number(args?.take || 30);
+      const orderByName = args?.orderBy?.name;
+      const orderSql = orderByName === 'desc' ? 'ORDER BY sort_order ASC, name DESC' : 'ORDER BY sort_order ASC, name ASC';
+      return many(`SELECT id, name, slug, sort_order FROM tags ${orderSql} LIMIT ?`, take);
+    },
+    async findUnique({ where }: any) {
+      if (where?.id) return one('SELECT id, name, slug, sort_order FROM tags WHERE id = ?', where.id);
+      if (where?.slug) return one('SELECT id, name, slug, sort_order FROM tags WHERE slug = ?', where.slug);
+      return null;
+    },
+    async adminList() {
+      return many(
+        `SELECT t.id, t.name, t.slug, t.sort_order, COUNT(pt.postId) AS post_count
+         FROM tags t
+         LEFT JOIN post_tags pt ON pt.tagId = t.id
+         GROUP BY t.id, t.name, t.slug, t.sort_order
+         ORDER BY t.sort_order ASC, t.name ASC`
+      );
     },
     async upsert({ where, update, create }: any) {
       const found = await one('SELECT * FROM tags WHERE slug = ?', where.slug);
@@ -401,8 +418,19 @@ export const prisma = {
         return (await one('SELECT * FROM tags WHERE slug = ?', where.slug)) as any;
       }
       const id = cuidLike();
-      await run('INSERT INTO tags (id, name, slug, createdAt) VALUES (?, ?, ?, CURRENT_TIMESTAMP)', id, create.name, create.slug);
+      await run('INSERT INTO tags (id, name, slug, sort_order, createdAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)', id, create.name, create.slug, create.sort_order ?? 0);
       return (await one('SELECT * FROM tags WHERE id = ?', id)) as any;
+    },
+    async update({ where, data }: any) {
+      const fields = Object.keys(data || {});
+      if (!fields.length) return this.findUnique({ where });
+      const set = fields.map((f) => `${f} = ?`).join(', ');
+      await run(`UPDATE tags SET ${set} WHERE id = ?`, ...fields.map((f) => data[f]), where.id);
+      return this.findUnique({ where });
+    },
+    async delete({ where }: any) {
+      await run('DELETE FROM tags WHERE id = ?', where.id);
+      return { id: where.id };
     }
   },
   postTag: {

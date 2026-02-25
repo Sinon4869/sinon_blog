@@ -13,7 +13,7 @@ import { SETTING_KEYS } from '@/lib/site-settings';
 import { sanitizeHtml, sanitizeText } from '@/lib/security';
 import { savePostWithTags } from '@/lib/post-service';
 import { archiveNotionByPostId, syncPostToNotion } from '@/lib/notion-sync';
-import { buildPostPath } from '@/lib/utils';
+import { buildPostPath, slugify } from '@/lib/utils';
 
 function makeInternalPostSlug() {
   return `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -180,6 +180,88 @@ export async function saveUserSystemConfig(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/login');
   revalidatePath('/register');
+}
+
+export async function updateCategoryOrder(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
+
+  const tagId = formData.get('tagId')?.toString().trim();
+  const sortOrderRaw = formData.get('sortOrder')?.toString().trim() || '0';
+  if (!tagId) throw new Error('分类不存在');
+
+  const sortOrder = Number(sortOrderRaw);
+  if (!Number.isFinite(sortOrder)) throw new Error('排序值无效');
+
+  await prisma.tag.update({ where: { id: tagId }, data: { sort_order: Math.max(-9999, Math.min(9999, Math.round(sortOrder))) } });
+  revalidatePath('/admin');
+  revalidatePath('/');
+}
+
+export async function renameCategory(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
+
+  const tagId = formData.get('tagId')?.toString().trim();
+  const nextName = sanitizeText(formData.get('nextName')?.toString() || '', 50).trim();
+  if (!tagId || !nextName) throw new Error('分类参数不完整');
+
+  const tag = (await prisma.tag.findUnique({ where: { id: tagId } })) as { id: string; slug: string } | null;
+  if (!tag) throw new Error('分类不存在');
+
+  const baseSlug = slugify(nextName);
+  if (!baseSlug) throw new Error('分类名称无效');
+
+  let nextSlug = baseSlug;
+  let i = 2;
+  while (true) {
+    const found = (await prisma.tag.findUnique({ where: { slug: nextSlug } })) as { id: string } | null;
+    if (!found || found.id === tagId) break;
+    nextSlug = `${baseSlug}-${i}`;
+    i += 1;
+  }
+
+  await prisma.tag.update({ where: { id: tagId }, data: { name: nextName, slug: nextSlug } });
+  revalidatePath('/admin');
+  revalidatePath('/');
+}
+
+export async function mergeOrDeleteCategory(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'ADMIN') throw new Error('仅管理员可管理分类');
+
+  const sourceTagId = formData.get('sourceTagId')?.toString().trim();
+  const targetTagId = formData.get('targetTagId')?.toString().trim() || '';
+  const mode = formData.get('mode')?.toString().trim() || 'delete';
+  if (!sourceTagId) throw new Error('分类参数不完整');
+
+  const source = (await prisma.tag.findUnique({ where: { id: sourceTagId } })) as { id: string } | null;
+  if (!source) throw new Error('分类不存在');
+
+  const linked = await prisma.transaction(async (tx) => {
+    const countRow = await tx.one<{ c: number }>('SELECT COUNT(*) as c FROM post_tags WHERE tagId = ?', sourceTagId);
+    return countRow?.c ?? 0;
+  });
+
+  if (mode === 'merge') {
+    if (!targetTagId) throw new Error('请选择合并目标分类');
+    if (targetTagId === sourceTagId) throw new Error('不能合并到自身');
+
+    const target = (await prisma.tag.findUnique({ where: { id: targetTagId } })) as { id: string } | null;
+    if (!target) throw new Error('目标分类不存在');
+
+    await prisma.transaction(async (tx) => {
+      await tx.run('INSERT OR IGNORE INTO post_tags (postId, tagId) SELECT postId, ? FROM post_tags WHERE tagId = ?', targetTagId, sourceTagId);
+      await tx.run('DELETE FROM post_tags WHERE tagId = ?', sourceTagId);
+      await tx.run('DELETE FROM tags WHERE id = ?', sourceTagId);
+    });
+  } else {
+    if (linked > 0) throw new Error('该分类下仍有关联文章，请先选择“合并”再删除');
+    await prisma.tag.delete({ where: { id: sourceTagId } });
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/');
 }
 
 export async function saveProfile(formData: FormData) {
