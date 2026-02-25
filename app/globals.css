@@ -49,6 +49,18 @@ body.modal-open .admin-notice {
   display: none;
 }
 
+.page-shell {
+  @apply relative;
+}
+
+.page-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(1000px 420px at 10% 0%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 68%);
+}
+
 @keyframes fadeRiseIn {
   from {
     opacity: 0;
