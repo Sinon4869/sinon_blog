@@ -4,7 +4,6 @@ import Link from 'next/link';
 import type { Route } from 'next';
 
 import { prisma } from '@/lib/prisma';
-import { getPersonalIntro } from '@/lib/site-settings';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 const PAGE_SIZE = 8;
@@ -62,10 +61,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   let recentPosts: any[] = [];
   let categoryStats: any[] = [];
   let analytics = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
-  let intro = { name: '', bio: '', avatar: '', links: [] as Array<{ label: string; url: string }> };
 
   try {
-    [posts, total, tags, recentPosts, categoryStats, analytics, intro] = await Promise.all([
+    [posts, total, tags, recentPosts, categoryStats, analytics] = await Promise.all([
       prisma.post.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
@@ -97,7 +95,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       }),
       prisma.tag.adminList(),
       prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } } as any)),
-      getPersonalIntro()
     ]);
   } catch {
     posts = [];
@@ -106,7 +103,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     recentPosts = [];
     categoryStats = [];
     analytics = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
-    intro = { name: '', bio: '', avatar: '', links: [] };
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -124,18 +120,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。</p>
           </div>
           <div className="rounded-xl border border-[var(--line-soft)] bg-white/75 p-4">
-            <p className="text-xs tracking-[0.2em] text-zinc-500">ABOUT</p>
-            <p className="mt-2 text-base font-semibold text-zinc-800">{intro.name || '作者'}</p>
-            <p className="mt-1 text-sm leading-7 text-zinc-600">{intro.bio || '欢迎来到这里，记录技术、生活和长期主义。'}</p>
-            {intro.links.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {intro.links.slice(0, 4).map((l) => (
-                  <a key={l.label} href={l.url} target="_blank" rel="noreferrer" className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            )}
+            <p className="text-xs tracking-[0.2em] text-zinc-500">READING MODE</p>
+            <p className="mt-2 text-sm leading-7 text-zinc-600">可通过分类与搜索快速定位文章；侧栏提供最近文章、分类、标签与站点概览。</p>
           </div>
         </div>
       </section>
@@ -316,23 +302,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               <p>最近更新：{updatedAt ? formatDate(updatedAt) : '-'}</p>
             </div>
           </section>
-
-          {(intro.name || intro.bio || intro.links.length > 0) && (
-            <section className="card space-y-2">
-              <h3 className="text-sm font-semibold text-zinc-700">About</h3>
-              <p className="text-sm font-medium text-zinc-800">{intro.name || '作者'}</p>
-              <p className="text-xs leading-6 text-zinc-600">{intro.bio || '欢迎来到这里。'}</p>
-              {intro.links.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {intro.links.slice(0, 4).map((l) => (
-                    <a key={l.label} href={l.url} target="_blank" rel="noreferrer" className="rounded border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
-                      {l.label}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
         </aside>
       </section>
     </div>
