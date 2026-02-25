@@ -227,7 +227,6 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="space-y-5">
-          <PostReadingEnhancements containerId="post-content" />
           <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="section-kicker">正文</p>
@@ -362,6 +361,10 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             <p className="text-xs tracking-[0.24em] text-zinc-500">文档信息</p>
             <p className="mt-2 text-sm leading-7 text-zinc-600">文档编号：{post.id}</p>
             <p className="text-sm leading-7 text-zinc-600">发布日期：{formatDate(post.publishedAt || post.createdAt)}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--line-soft)] bg-white/65 p-4">
+            <PostReadingEnhancements containerId="post-content" />
           </div>
         </aside>
       </section>
