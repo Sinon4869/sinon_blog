@@ -138,7 +138,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             全部
           </Link>
           {tags.map((t) => {
-            const href = q ? `/?q=${encodeURIComponent(q)}&tag=${t.slug}` : `/?tag=${t.slug}`;
+            const href = `/category/${encodeURIComponent(t.slug)}`;
             return (
               <Link
                 key={t.id}

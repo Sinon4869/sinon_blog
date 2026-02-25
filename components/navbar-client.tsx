@@ -108,10 +108,13 @@ export function NavbarClient({
               <Link href="/" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
                 全部文章
               </Link>
+              <Link href="/archives" className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100" onClick={() => setOpenMenu(null)}>
+                归档
+              </Link>
               {tags.map((t) => (
                 <Link
                   key={t.id}
-                  href={`/?tag=${encodeURIComponent(t.slug)}`}
+                  href={`/category/${encodeURIComponent(t.slug)}`}
                   className="block rounded px-2.5 py-1.5 text-zinc-700 hover:bg-zinc-100"
                   onClick={() => setOpenMenu(null)}
                 >
@@ -175,9 +178,12 @@ export function NavbarClient({
             <Link href="/" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
               首页
             </Link>
+            <Link href="/archives" className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
+              归档
+            </Link>
             <p className="px-3 pt-2 text-xs text-zinc-500">分类</p>
             {tags.map((t) => (
-              <Link key={t.id} href={`/?tag=${encodeURIComponent(t.slug)}`} className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
+              <Link key={t.id} href={`/category/${encodeURIComponent(t.slug)}`} className="block rounded px-3 py-2 text-sm hover:bg-zinc-100">
                 #{t.name}
               </Link>
             ))}

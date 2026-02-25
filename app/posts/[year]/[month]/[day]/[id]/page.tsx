@@ -91,11 +91,42 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
   const postUrl = `${base}${canonicalPath}`;
   const image = (post as any).cover_image || (post as any).background_image || undefined;
-  const [authorPostCount, globalTagCount, anonymousCommentEnabled] = await Promise.all([
+  const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);
+
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
     prisma.tag.findMany({}).then((rows) => rows.length),
-    isAnonymousCommentEnabled()
+    isAnonymousCommentEnabled(),
+    tagSlugs.length
+      ? prisma.post.findMany({
+          where: { published: true, tags: { some: { tag: { slug: tagSlugs[0] } } } },
+          orderBy: { publishedAt: 'desc' },
+          take: 12,
+          select: {
+            id: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            createdAt: true,
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+          }
+        })
+      : prisma.post.findMany({
+          where: { published: true, authorId: post.authorId },
+          orderBy: { publishedAt: 'desc' },
+          take: 12,
+          select: {
+            id: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            createdAt: true,
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+          }
+        })
   ]);
+
+  const relatedPosts = (relatedRaw || []).filter((p: any) => p.id !== post.id).slice(0, 4);
 
   const articleJsonLd = {
     '@context': 'https://schema.org',
@@ -179,6 +210,25 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             </div>
             <MdxContent source={post.content} />
           </article>
+
+          <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-zinc-800">相关文章</h2>
+              <a href="/archives" className="text-xs text-zinc-500 hover:underline">查看归档</a>
+            </div>
+            <div className="space-y-2">
+              {relatedPosts.length === 0 && <p className="text-sm text-zinc-500">暂无相关文章。</p>}
+              {relatedPosts.map((rp: any) => (
+                <article key={rp.id} className="rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3">
+                  <a href={buildPostPath(rp)} className="text-base font-medium text-zinc-800 hover:underline">
+                    {rp.title}
+                  </a>
+                  <p className="mt-1 text-xs text-zinc-500">{formatDate(rp.publishedAt || rp.createdAt)}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{rp.excerpt || '暂无摘要'}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
             <h2 className="text-2xl font-semibold text-zinc-800">评论</h2>
