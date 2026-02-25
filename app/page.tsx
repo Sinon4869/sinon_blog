@@ -113,16 +113,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-7 sm:space-y-8">
       <section className="hero-panel p-5 sm:p-7">
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
-          <div>
-            <p className="section-kicker">KOMOREBI JOURNAL</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-wide text-zinc-800 sm:text-5xl">静かな場所で、ゆっくり読む。</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。</p>
-          </div>
-          <div className="rounded-xl border border-[var(--line-soft)] bg-white/75 p-4">
-            <p className="text-xs tracking-[0.2em] text-zinc-500">READING MODE</p>
-            <p className="mt-2 text-sm leading-7 text-zinc-600">可通过分类与搜索快速定位文章；侧栏提供最近文章、分类、标签与站点概览。</p>
-          </div>
+        <div>
+          <p className="section-kicker">KOMOREBI JOURNAL</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-wide text-zinc-800 sm:text-5xl">静かな場所で、ゆっくり読む。</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base">收录技术、日常与长期主义的笔记。把高噪音世界里剩下的沉默，写成可回看的文字。</p>
         </div>
       </section>
 
