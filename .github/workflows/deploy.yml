@@ -180,23 +180,36 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           set -e
+          is_cf_challenge() {
+            grep -Eiq "(Just a moment|cf-browser-verification|challenge-platform|cloudflare)" "$1"
+          }
           check_url() {
             url="$1"
             ok_regex="$2"
-            code=$(curl -sS -o /tmp/smoke_body.txt -w "%{http_code}" "$url" || true)
+            body_file="/tmp/smoke_body_$(echo "$url" | sed 's#[^a-zA-Z0-9]#_#g').txt"
+            code=$(curl -sS -L --max-redirs 5 -o "$body_file" -w "%{http_code}" "$url" || true)
             echo "smoke $url => HTTP $code"
-            if ! echo "$code" | grep -Eq "$ok_regex"; then
-              echo "unexpected status for $url: $code"
-              echo "--- response body (first 20 lines) ---"
-              sed -n '1,20p' /tmp/smoke_body.txt || true
-              exit 1
+
+            if echo "$code" | grep -Eq "$ok_regex"; then
+              return 0
             fi
+
+            if [ "$code" = "403" ] && is_cf_challenge "$body_file"; then
+              echo "::warning::smoke got Cloudflare challenge (403) for $url, treat as pass"
+              return 0
+            fi
+
+            echo "unexpected status for $url: $code"
+            echo "--- response body (first 40 lines) ---"
+            sed -n '1,40p' "$body_file" || true
+            exit 1
           }
-          check_url "https://sinon.live/" "^(200|301|302)$"
-          check_url "https://sinon.live/login" "^(200|301|302)$"
-          check_url "https://sinon.live/write" "^(200|301|302)$"
-          check_url "https://sinon.live/write/preview" "^(200|301|302)$"
-          check_url "https://sinon.live/api/auth/signin/google" "^(200|302)$"
+
+          check_url "https://sinon.live/" "^(200)$"
+          check_url "https://sinon.live/login" "^(200)$"
+          check_url "https://sinon.live/write" "^(200|302)$"
+          check_url "https://sinon.live/write/preview" "^(200|302)$"
+          check_url "https://sinon.live/api/auth/signin/google" "^(200|302|400)$"
 
       - name: Migration guard (dev)
         if: github.ref == 'refs/heads/dev'
@@ -218,28 +231,41 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           set -e
+          is_cf_challenge() {
+            grep -Eiq "(Just a moment|cf-browser-verification|challenge-platform|cloudflare)" "$1"
+          }
           check_url() {
             url="$1"
             ok_regex="$2"
-            code=$(curl -sS -o /tmp/smoke_body.txt -w "%{http_code}" "$url" || true)
+            body_file="/tmp/smoke_body_$(echo "$url" | sed 's#[^a-zA-Z0-9]#_#g').txt"
+            code=$(curl -sS -L --max-redirs 5 -o "$body_file" -w "%{http_code}" "$url" || true)
             echo "smoke $url => HTTP $code"
-            if ! echo "$code" | grep -Eq "$ok_regex"; then
-              echo "unexpected status for $url: $code"
-              echo "--- response body (first 20 lines) ---"
-              sed -n '1,20p' /tmp/smoke_body.txt || true
-              exit 1
+
+            if echo "$code" | grep -Eq "$ok_regex"; then
+              return 0
             fi
+
+            if [ "$code" = "403" ] && is_cf_challenge "$body_file"; then
+              echo "::warning::smoke got Cloudflare challenge (403) for $url, treat as pass"
+              return 0
+            fi
+
+            echo "unexpected status for $url: $code"
+            echo "--- response body (first 40 lines) ---"
+            sed -n '1,40p' "$body_file" || true
+            exit 1
           }
+
           if ! getent hosts dev.sinon.live >/dev/null; then
             echo "dev.sinon.live DNS unresolved, skip dev smoke test"
             exit 0
           fi
-          # dev 站点可能启用 Cloudflare Access/WAF，CI 出网会返回 403（部署本身已成功）
-          check_url "https://dev.sinon.live/" "^(200|301|302|403)$"
-          check_url "https://dev.sinon.live/login" "^(200|301|302|403)$"
-          check_url "https://dev.sinon.live/write" "^(200|301|302|403)$"
-          check_url "https://dev.sinon.live/write/preview" "^(200|301|302|403)$"
-          check_url "https://dev.sinon.live/api/auth/signin/google" "^(200|302|400|403)$"
+
+          check_url "https://dev.sinon.live/" "^(200)$"
+          check_url "https://dev.sinon.live/login" "^(200)$"
+          check_url "https://dev.sinon.live/write" "^(200|302)$"
+          check_url "https://dev.sinon.live/write/preview" "^(200|302)$"
+          check_url "https://dev.sinon.live/api/auth/signin/google" "^(200|302|400)$"
 
       - name: Failure debug context
         if: failure()
