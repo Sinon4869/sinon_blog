@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   metadataBase: resolveMetadataBase(),
   title: 'Komorebi',
   description: 'Next.js 现代博客系统',
+  icons: {
+    icon: '/api/site-icon',
+    shortcut: '/api/site-icon',
+    apple: '/api/site-icon'
+  },
   openGraph: {
     title: 'Komorebi',
     description: 'Next.js 现代博客系统',

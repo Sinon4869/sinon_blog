@@ -1,6 +1,9 @@
-import { mergeOrDeleteCategory, renameCategory, savePersonalIntroConfig, saveUserSystemConfig, updateCategoryOrder } from '@/app/actions';
+import { savePersonalIntroConfig, saveSiteConfig, saveUserSystemConfig } from '@/app/actions';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
 import { AdminUserTable } from '@/components/admin-user-table';
+import { CategoryManagementCenter } from '@/components/category-management-center';
+import { SiteIconConfigField } from '@/components/site-icon-config-field';
+import { AdminNotice } from '@/components/admin-notice';
 import { prisma } from '@/lib/prisma';
 import { ANONYMOUS_USER_EMAIL, SETTING_KEYS, SUPER_ADMIN_EMAIL } from '@/lib/site-settings';
 
@@ -20,8 +23,9 @@ type CategoryItem = {
   post_count: number;
 };
 
-export async function AdminWorkspace() {
-  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks] = await Promise.all([
+
+export async function AdminWorkspace({ notice, type }: { notice?: string; type?: 'success' | 'error' } = {}) {
+  const [usersRaw, posts, comments, userListRaw, logsRaw, registrationSetting, anonymousSetting, categoriesRaw, introName, introBio, introAvatar, introLinks, siteTitleSetting, siteIconSetting, siteIconUrlSetting] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.comment.count(),
@@ -36,7 +40,10 @@ export async function AdminWorkspace() {
     prisma.setting.get(SETTING_KEYS.profileName),
     prisma.setting.get(SETTING_KEYS.profileBio),
     prisma.setting.get(SETTING_KEYS.profileAvatar),
-    prisma.setting.get(SETTING_KEYS.profileLinks)
+    prisma.setting.get(SETTING_KEYS.profileLinks),
+    prisma.setting.get(SETTING_KEYS.siteTitle),
+    prisma.setting.get(SETTING_KEYS.siteIcon),
+    prisma.setting.get(SETTING_KEYS.siteIconUrl)
   ]);
 
   const registrationEnabled = !registrationSetting || registrationSetting.value !== '0';
@@ -77,13 +84,39 @@ export async function AdminWorkspace() {
   const website = introLinksParsed.find((x) => x.label === '网站')?.url || '';
   const github = introLinksParsed.find((x) => x.label === 'GitHub')?.url || '';
   const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
+  const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
+  const siteIcon = String((siteIconSetting as { value?: string } | null)?.value || '木').trim() || '木';
+  const siteIconUrl = String((siteIconUrlSetting as { value?: string } | null)?.value || '').trim();
 
   return (
     <div className="space-y-4">
+      <AdminNotice notice={notice} type={type} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card">用户总数：{users}</div>
         <div className="card">文章总数：{posts}</div>
         <div className="card">评论总数：{comments}</div>
+      </div>
+
+
+      <div id="site-nav-config" className="card space-y-3">
+        <h2 className="text-lg font-semibold">站点与导航配置</h2>
+        <form action={saveSiteConfig} className="grid gap-3">
+          <div>
+            <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
+            <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-zinc-600">站点图标（支持 emoji / 短字符）</label>
+            <input className="input" name="siteIcon" defaultValue={siteIcon} placeholder="例如：🌍 或 木" maxLength={8} />
+          </div>
+          <SiteIconConfigField initialUrl={siteIconUrl} />
+          <p className="text-xs text-zinc-500">分类请在下方“分类管理中心”统一维护，导航将自动同步分类数据。</p>
+          <div>
+            <ConfirmSubmitButton className="btn" confirmText="确认保存站点与导航配置？">
+              保存配置
+            </ConfirmSubmitButton>
+          </div>
+        </form>
       </div>
 
       <div className="card space-y-3">
@@ -126,66 +159,7 @@ export async function AdminWorkspace() {
         <AdminUserTable initialUsers={userList} />
       </div>
 
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">分类管理中心</h2>
-        <p className="text-sm text-zinc-500">支持重命名、合并、删除与排序。删除含文章分类前，请先合并到目标分类。</p>
-        <div className="space-y-3">
-          {categories.length === 0 && <p className="text-sm text-zinc-500">暂无分类</p>}
-          {categories.map((cat) => (
-            <div key={cat.id} className="space-y-2 rounded-xl border border-[var(--line-soft)] bg-white p-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium text-zinc-800">#{cat.name}</span>
-                <span className="text-zinc-500">slug: {cat.slug}</span>
-                <span className="text-zinc-500">文章数: {cat.post_count}</span>
-              </div>
-
-              <div className="grid gap-2 md:grid-cols-3">
-                <form action={renameCategory} className="flex gap-2">
-                  <input type="hidden" name="tagId" value={cat.id} />
-                  <input className="input" name="nextName" defaultValue={cat.name} placeholder="新分类名" />
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认重命名该分类？">
-                    重命名
-                  </ConfirmSubmitButton>
-                </form>
-
-                <form action={updateCategoryOrder} className="flex gap-2">
-                  <input type="hidden" name="tagId" value={cat.id} />
-                  <input className="input" name="sortOrder" type="number" defaultValue={cat.sort_order} />
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认更新排序？">
-                    排序
-                  </ConfirmSubmitButton>
-                </form>
-
-                <form action={mergeOrDeleteCategory} className="flex gap-2">
-                  <input type="hidden" name="sourceTagId" value={cat.id} />
-                  <input type="hidden" name="mode" value="merge" />
-                  <select className="input" name="targetTagId" defaultValue="">
-                    <option value="">合并到...</option>
-                    {categories
-                      .filter((x) => x.id !== cat.id)
-                      .map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                  </select>
-                  <ConfirmSubmitButton className="rounded border px-3 py-2 text-xs" confirmText="确认合并该分类到目标分类？">
-                    合并
-                  </ConfirmSubmitButton>
-                </form>
-              </div>
-
-              <form action={mergeOrDeleteCategory}>
-                <input type="hidden" name="sourceTagId" value={cat.id} />
-                <input type="hidden" name="mode" value="delete" />
-                <ConfirmSubmitButton className="rounded border border-red-300 px-3 py-2 text-xs text-red-700" confirmText="确认删除该分类？若存在文章关联将被拦截。">
-                  删除分类
-                </ConfirmSubmitButton>
-              </form>
-            </div>
-          ))}
-        </div>
-      </div>
+      <CategoryManagementCenter categories={categories} />
 
       <div className="card space-y-2">
         <div className="flex items-center justify-between">

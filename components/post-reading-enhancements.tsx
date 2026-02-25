@@ -82,13 +82,10 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-0 z-50 h-1 bg-transparent">
-        <div className="h-full bg-zinc-800 transition-all" style={{ width: `${progress}%` }} />
-      </div>
-
       {hasToc && (
         <aside className="card mb-4">
-          <p className="text-xs tracking-[0.2em] text-zinc-500">目录</p>
+          <p className="text-[11px] tracking-[0.16em] text-zinc-500">阅读进度 · {progress}%</p>
+          <p className="mt-2 text-xs tracking-[0.2em] text-zinc-500">目录</p>
           <div className="mt-2 space-y-1">
             {toc.map((t) => (
               <a key={t.id} href={`#${t.id}`} className="block text-sm text-zinc-700 hover:underline" style={{ marginLeft: `${(t.level - 1) * 10}px` }}>

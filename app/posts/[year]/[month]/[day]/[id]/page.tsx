@@ -20,6 +20,20 @@ async function findPostById(id: string) {
   });
 }
 
+
+function htmlToPlainText(input: string) {
+  return String(input || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ year: string; month: string; day: string; id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const post = await findPostById(id);
@@ -94,7 +108,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
   const image = (post as any).cover_image || (post as any).background_image || undefined;
   const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);
 
-  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro] = await Promise.all([
+  const [authorPostCount, globalTagCount, anonymousCommentEnabled, relatedRaw, personalIntro, postViews] = await Promise.all([
     prisma.post.count({ where: { authorId: post.authorId, published: true } }),
     prisma.tag.findMany({}).then((rows) => rows.length),
     isAnonymousCommentEnabled(),
@@ -109,7 +123,9 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             excerpt: true,
             publishedAt: true,
             createdAt: true,
-            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+            cover_image: true,
+            _count: { select: { comments: true } }
           }
         })
       : prisma.post.findMany({
@@ -122,10 +138,16 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             excerpt: true,
             publishedAt: true,
             createdAt: true,
-            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } }
+            tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+            cover_image: true,
+            _count: { select: { comments: true } }
           }
         }),
-    getPersonalIntro()
+    getPersonalIntro(),
+    prisma.transaction(async (tx) => {
+      const row = await tx.one<{ c: number }>('SELECT COUNT(*) as c FROM page_view_events WHERE post_id = ?', post.id);
+      return Number(row?.c ?? 0);
+    }).catch(() => 0)
   ]);
 
   const relatedPosts = (relatedRaw || []).filter((p: any) => p.id !== post.id).slice(0, 4);
@@ -181,9 +203,20 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
               <p className="text-xs tracking-[0.26em] text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
               <h1 className="text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">{post.title}</h1>
               <p className="max-w-2xl text-sm leading-7 text-zinc-600">{post.excerpt || '写给沉默时刻的短章。'}</p>
-              <p className="text-sm text-zinc-600">
-                {post.author.name || post.author.email} · {(post as any).reading_time || 1} min read · {post.comments.length} 条评论
-              </p>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                  <span>👤 {post.author.name || post.author.email}</span>
+                  <span>·</span>
+                  <span>🗓 {formatDate(post.publishedAt || post.createdAt)}</span>
+                  <span>·</span>
+                  <span>🏷 {post.tags[0]?.tag?.name ? `#${post.tags[0].tag.name}` : '未分类'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
+                  <span>📝 Word Count: {Math.max(1, htmlToPlainText(post.content).split(/\s+/).filter(Boolean).length)}</span>
+                  <span>⏱ Reading Time: {(post as any).reading_time || 1} mins</span>
+                  <span>👁 Post Views: {postViews}</span>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {post.tags.map((t: { tagId: string; tag: { name: string } }) => (
                   <span key={t.tagId} className="rounded-full border border-[var(--line-soft)] bg-white/70 px-2.5 py-1 text-xs text-zinc-700">
@@ -198,7 +231,6 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_330px]">
         <div className="space-y-5">
-          <PostReadingEnhancements containerId="post-content" />
           <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="section-kicker">正文</p>
@@ -215,60 +247,96 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
           </article>
 
           <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-zinc-800">相关文章</h2>
               <a href="/archives" className="text-xs text-zinc-500 hover:underline">查看归档</a>
             </div>
-            <div className="space-y-2">
-              {relatedPosts.length === 0 && <p className="text-sm text-zinc-500">暂无相关文章。</p>}
-              {relatedPosts.map((rp: any) => (
-                <article key={rp.id} className="rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3">
-                  <a href={buildPostPath(rp)} className="text-base font-medium text-zinc-800 hover:underline">
-                    {rp.title}
-                  </a>
-                  <p className="mt-1 text-xs text-zinc-500">{formatDate(rp.publishedAt || rp.createdAt)}</p>
-                  <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{rp.excerpt || '暂无摘要'}</p>
-                </article>
-              ))}
-            </div>
+            {relatedPosts.length === 0 ? (
+              <p className="text-sm text-zinc-500">暂无相关文章。</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {relatedPosts.map((rp: any) => (
+                  <article key={rp.id} className="overflow-hidden rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] transition-all duration-300 hover:-translate-y-[1px] hover:shadow-sm">
+                    <a href={buildPostPath(rp)} className="block">
+                      {rp.cover_image ? (
+                        <SmartImage src={rp.cover_image} alt={rp.title} width={480} height={260} className="h-28 w-full object-cover" />
+                      ) : (
+                        <div className="h-28 w-full bg-zinc-200" />
+                      )}
+                    </a>
+                    <div className="space-y-1.5 p-3">
+                      <a href={buildPostPath(rp)} className="line-clamp-2 text-base font-semibold leading-snug text-zinc-800 hover:underline">
+                        {rp.title}
+                      </a>
+                      <p className="text-xs text-zinc-500">{formatDate(rp.publishedAt || rp.createdAt)} · {rp._count?.comments ?? 0} 条评论</p>
+                      <p className="line-clamp-2 text-sm text-zinc-600">{rp.excerpt || '暂无摘要'}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="card rounded-2xl border-[var(--line-soft)] bg-white/75 p-5 sm:p-6">
-            <h2 className="text-2xl font-semibold text-zinc-800">评论</h2>
-            {session?.user && (
-              <form action="/api/comments" method="post" className="mt-4 space-y-3">
-                <input type="hidden" name="postId" value={post.id} />
-                <textarea name="content" className="input min-h-24" required placeholder="写下你的评论" />
-                <button className="btn" type="submit">
-                  发表评论
-                </button>
-              </form>
-            )}
-            {!session?.user && anonymousCommentEnabled && (
-              <form action="/api/comments" method="post" className="mt-4 space-y-3">
-                <input type="hidden" name="postId" value={post.id} />
-                <textarea name="content" className="input min-h-24" required placeholder="匿名评论（无需登录）" />
-                <button className="btn" type="submit">
-                  匿名发表评论
-                </button>
-              </form>
-            )}
-            {!session?.user && !anonymousCommentEnabled && (
-              <p className="mt-3 text-sm text-zinc-500">
-                请先
-                <a href="/login" className="mx-1 underline">
-                  登录
-                </a>
-                后发表评论。
-              </p>
-            )}
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-3">
+              <h2 className="flex items-center gap-2 text-2xl font-semibold text-zinc-800">
+                <span>💬</span>
+                <span>Comments</span>
+              </h2>
+              <p className="text-sm text-zinc-500">{post.comments.length} 条评论</p>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3">
+              {session?.user && (
+                <form action="/api/comments" method="post" className="space-y-3">
+                  <input type="hidden" name="postId" value={post.id} />
+                  <textarea name="content" className="input min-h-24" required placeholder="加入讨论..." />
+                  <div className="flex items-center justify-end">
+                    <button className="btn" type="submit">
+                      发表评论
+                    </button>
+                  </div>
+                </form>
+              )}
+              {!session?.user && anonymousCommentEnabled && (
+                <form action="/api/comments" method="post" className="space-y-3">
+                  <input type="hidden" name="postId" value={post.id} />
+                  <textarea name="content" className="input min-h-24" required placeholder="匿名评论（无需登录）" />
+                  <div className="flex items-center justify-end">
+                    <button className="btn" type="submit">
+                      匿名发表评论
+                    </button>
+                  </div>
+                </form>
+              )}
+              {!session?.user && !anonymousCommentEnabled && (
+                <p className="text-sm text-zinc-500">
+                  请先
+                  <a href="/login" className="mx-1 underline">
+                    登录
+                  </a>
+                  后发表评论。
+                </p>
+              )}
+            </div>
+
             <div className="mt-4 space-y-3">
               {post.comments.length === 0 && <p className="text-sm text-zinc-500">还没有评论。</p>}
               {post.comments.map((c: any) => (
-                <div className="rounded-xl border border-[var(--line-soft)] bg-[#f7f6f2] p-3.5" key={c.id}>
-                  <p className="text-xs tracking-wide text-zinc-500">{c.user.name || c.user.email}</p>
-                  <p className="mt-1.5 leading-7 text-zinc-700">{c.content}</p>
-                </div>
+                <article className="rounded-xl border border-[var(--line-soft)] bg-white p-3.5" key={c.id}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-sm font-semibold text-zinc-700">
+                      {(c.user.name || c.user.email || '?').slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="text-sm font-medium text-zinc-800">{c.user.name || c.user.email}</p>
+                        <span className="text-xs text-zinc-500">{formatDate(c.createdAt || new Date())}</span>
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-wrap leading-7 text-zinc-700">{c.content}</p>
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
           </section>
@@ -333,6 +401,10 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
             <p className="text-xs tracking-[0.24em] text-zinc-500">文档信息</p>
             <p className="mt-2 text-sm leading-7 text-zinc-600">文档编号：{post.id}</p>
             <p className="text-sm leading-7 text-zinc-600">发布日期：{formatDate(post.publishedAt || post.createdAt)}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--line-soft)] bg-white/65 p-4">
+            <PostReadingEnhancements containerId="post-content" />
           </div>
         </aside>
       </section>

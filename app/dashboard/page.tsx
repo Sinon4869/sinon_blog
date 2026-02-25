@@ -3,9 +3,9 @@ import type { Route } from 'next';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
-import { deletePost, saveSiteConfig, setPostPublished } from '@/app/actions';
+import { deletePost, setPostPublished } from '@/app/actions';
+import { AnalyticsBoard } from '@/components/analytics-board';
 import { ConfirmSubmitButton } from '@/components/confirm-submit-button';
-import { NavCategoriesEditor } from '@/components/nav-categories-editor';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
@@ -41,31 +41,9 @@ function buildHref(q: string, status: string, page: number) {
   return `/dashboard?${sp.toString()}` as Route;
 }
 
-function parseConfiguredCategories(value: string) {
-  const raw = value.trim();
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-        .slice(0, 20);
-    }
-  } catch {
-    // fallback for legacy values
-  }
-  return raw
-    .split(/[\n,，]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 20);
-}
-
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardSearchParams> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
-  const isAdmin = session.user.role === 'ADMIN';
 
   const sp = await searchParams;
   const q = (sp.q || '').trim();
@@ -83,13 +61,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       : {})
   };
 
-  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, siteTitleSetting, navCategoriesSetting, analyticsSummary] = await Promise.all([
+  const [allMineRaw, allMatchedRaw, pagePostsRaw, favorites, analyticsSummary] = await Promise.all([
     prisma.post.findMany({ where: { authorId: session.user.id }, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' } }),
     prisma.post.findMany({ where, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     prisma.favorite.findMany({ where: { userId: session.user.id } }),
-    isAdmin ? prisma.setting.get('site_title') : Promise.resolve(null),
-    isAdmin ? prisma.setting.get('nav_categories') : Promise.resolve(null),
     prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 }, topPages: [], sources: [], devices: [], categories: [] }))
   ]);
 
@@ -100,9 +76,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const publishedCount = allMine.filter((p) => p.published).length;
   const draftCount = allMine.length - publishedCount;
   const totalPages = Math.max(1, Math.ceil(allMatched.length / PAGE_SIZE));
-  const siteTitle = String((siteTitleSetting as { value?: string } | null)?.value || 'Komorebi');
-  const navCategories = String((navCategoriesSetting as { value?: string } | null)?.value || '');
-  const navCategoryList = parseConfiguredCategories(navCategories);
 
   return (
     <div className="space-y-6">
@@ -138,7 +111,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="card">
           <p className="text-xs text-zinc-500">文章总数</p>
           <p className="mt-1 text-3xl font-semibold text-zinc-800">{allMine.length}</p>
@@ -153,16 +126,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             {draftCount} / {favorites.length}
           </p>
         </div>
-        <div className="card space-y-1">
-          <p className="text-xs text-zinc-500">访客统计（二期）</p>
-          <p className="text-sm font-medium text-zinc-700">今日 PV/UV：{analyticsSummary.today.pv} / {analyticsSummary.today.uv}</p>
-          <p className="text-sm font-medium text-zinc-700">近7天 PV/UV：{analyticsSummary.sevenDays.pv} / {analyticsSummary.sevenDays.uv}</p>
-          <p className="pt-1 text-xs text-zinc-500">Top 页面：{(analyticsSummary.topPages || []).slice(0, 3).map((x: { path: string; pv: number }) => `${x.path}(${x.pv})`).join('、') || '-'}</p>
-          <p className="text-xs text-zinc-500">来源：{(analyticsSummary.sources || []).map((x: { source: string; pv: number }) => `${x.source}:${x.pv}`).join(' / ') || '-'}</p>
-          <p className="text-xs text-zinc-500">设备：{(analyticsSummary.devices || []).map((x: { device: string; pv: number }) => `${x.device}:${x.pv}`).join(' / ') || '-'}</p>
-          <p className="text-xs text-zinc-500">分类：{(analyticsSummary.categories || []).slice(0, 3).map((x: { name: string; pv: number }) => `${x.name}:${x.pv}`).join(' / ') || '-'}</p>
-        </div>
       </section>
+
+      <AnalyticsBoard summary={analyticsSummary} />
 
       <form action="/dashboard" className="card grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
         <input className="input" name="q" defaultValue={q} placeholder="搜索标题或摘要..." />
@@ -180,24 +146,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </Link>
         )}
       </form>
-
-      {isAdmin && (
-        <section className="card space-y-3">
-          <h2 className="text-lg font-semibold text-zinc-800">站点配置</h2>
-          <form action={saveSiteConfig} className="grid gap-3">
-            <div>
-              <label className="mb-1 block text-sm text-zinc-600">站点标题</label>
-              <input className="input" name="siteTitle" defaultValue={siteTitle} placeholder="例如：Komorebi" />
-            </div>
-            <NavCategoriesEditor initialCategories={navCategoryList} />
-            <div>
-              <ConfirmSubmitButton confirmText="确认保存站点配置？修改后导航将即时更新。" className="btn">
-                保存配置
-              </ConfirmSubmitButton>
-            </div>
-          </form>
-        </section>
-      )}
 
       <section className="overflow-hidden rounded-2xl border border-[var(--line-soft)] bg-white/60">
         <div className="space-y-3 p-3 md:hidden">

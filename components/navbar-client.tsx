@@ -15,10 +15,14 @@ function isActive(pathname: string, href: string) {
 
 export function NavbarClient({
   siteTitle,
+  siteIcon,
+  siteIconUrl,
   tags,
   session
 }: {
   siteTitle: string;
+  siteIcon: string;
+  siteIconUrl: string;
   tags: NavTag[];
   session: SessionData;
 }) {
@@ -31,19 +35,42 @@ export function NavbarClient({
 
   useEffect(() => {
     let lastY = window.scrollY;
+    let downDistance = 0;
+    let upDistance = 0;
+
     const onScroll = () => {
       const y = window.scrollY;
       const delta = y - lastY;
       setCompact(y > 20);
+
       if (y < 16) {
         setHidden(false);
-      } else if (delta > 8 && y > 120) {
-        setHidden(true);
-      } else if (delta < -8) {
-        setHidden(false);
+        downDistance = 0;
+        upDistance = 0;
+        lastY = y;
+        return;
       }
+
+      if (delta > 0) {
+        downDistance += delta;
+        upDistance = 0;
+        if (y > 140 && downDistance > 48) {
+          setHidden(true);
+          downDistance = 0;
+        }
+      } else if (delta < 0) {
+        upDistance += -delta;
+        downDistance = 0;
+        // 避免“轻微上划就出现”打断阅读，需要明显回拉才显示
+        if (upDistance > 140 || y < 72) {
+          setHidden(false);
+          upDistance = 0;
+        }
+      }
+
       lastY = y;
     };
+
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -84,7 +111,14 @@ export function NavbarClient({
         } ${compact ? 'px-3 py-2 shadow-lg shadow-zinc-900/10 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
       >
         <Link href="/" className="flex min-w-0 items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-gradient-to-br from-zinc-200 to-zinc-300 text-sm shadow-inner">木</span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/50 bg-gradient-to-br from-zinc-200 to-zinc-300 text-sm shadow-inner">
+            {siteIconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={siteIconUrl} alt="site icon" className="h-full w-full object-cover" />
+            ) : (
+              siteIcon
+            )}
+          </span>
           <span className="max-w-[46vw] truncate text-[24px] font-semibold leading-none tracking-tight sm:max-w-none sm:text-[28px]">{siteTitle}</span>
         </Link>
 

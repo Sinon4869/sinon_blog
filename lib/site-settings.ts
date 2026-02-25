@@ -5,6 +5,8 @@ export { SUPER_ADMIN_EMAIL, ANONYMOUS_USER_EMAIL };
 
 export const SETTING_KEYS = {
   siteTitle: 'site_title',
+  siteIcon: 'site_icon',
+  siteIconUrl: 'site_icon_url',
   navCategories: 'nav_categories',
   registrationEnabled: 'registration_enabled',
   anonymousCommentEnabled: 'anonymous_comment_enabled',
