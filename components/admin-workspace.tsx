@@ -79,7 +79,7 @@ export async function AdminWorkspace() {
   const xUrl = introLinksParsed.find((x) => x.label === 'X')?.url || '';
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card">用户总数：{users}</div>
         <div className="card">文章总数：{posts}</div>
