@@ -72,19 +72,19 @@ export function NavbarClient({
   }, [pathname]);
 
   const navLink = (href: string) =>
-    `rounded-md px-2.5 py-1.5 transition-all duration-300 hover:bg-white/80 hover:text-zinc-900 active:scale-[0.98] ${
-      isActive(pathname, href) ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-700'
+    `rounded-lg px-2.5 py-1.5 transition-all duration-300 hover:bg-white/85 hover:text-zinc-900 active:scale-[0.98] ${
+      isActive(pathname, href) ? 'bg-white text-zinc-900 shadow-sm shadow-zinc-900/10' : 'text-zinc-700'
     }`;
 
   return (
     <header className="sticky top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),10px)] sm:px-5">
       <div
-        className={`mx-auto flex w-full max-w-[1400px] items-center justify-between rounded-2xl border border-[var(--line-soft)] bg-[rgba(247,246,242,0.82)] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] transition-all duration-300 backdrop-blur-xl ${
+        className={`mx-auto flex w-full max-w-[1400px] items-center justify-between rounded-2xl border border-[var(--line-soft)] bg-[rgba(248,247,243,0.78)] shadow-[0_10px_26px_rgba(28,29,31,0.08),inset_0_1px_0_rgba(255,255,255,0.52)] transition-all duration-300 backdrop-blur-2xl ${
           hidden ? '-translate-y-24 opacity-0' : 'translate-y-0 opacity-100'
-        } ${compact ? 'px-3 py-2 shadow-md shadow-zinc-900/5 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
+        } ${compact ? 'px-3 py-2 shadow-lg shadow-zinc-900/10 sm:px-4' : 'px-4 py-3 sm:px-5'}`}
       >
         <Link href="/" className="flex min-w-0 items-center gap-2 text-base font-semibold text-zinc-800 sm:text-lg">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-200 text-sm">木</span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-gradient-to-br from-zinc-200 to-zinc-300 text-sm shadow-inner">木</span>
           <span className="max-w-[46vw] truncate text-[24px] font-semibold leading-none tracking-tight sm:max-w-none sm:text-[28px]">{siteTitle}</span>
         </Link>
 
