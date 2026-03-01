@@ -11,7 +11,7 @@ import { marked } from 'marked';
 import { AppModal } from '@/components/app-modal';
 
 type WriteEditorProps = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => void | Promise<void | { id?: string }>;
   post?: {
     id?: string;
     title?: string;
@@ -70,6 +70,7 @@ function todayLabel() {
 }
 
 export function WriteEditor({ action, post, availableCategories = [] }: WriteEditorProps) {
+  const [currentPostId, setCurrentPostId] = useState(post?.id || '');
   const [title, setTitle] = useState(post?.title || '');
   const [excerpt, setExcerpt] = useState(post?.excerpt || '');
   const initialSelected = (post?.tags || '')
@@ -216,7 +217,12 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
       formData.set('coverImage', coverImage);
       formData.set('backgroundImage', backgroundImage);
       formData.set('published', 'off');
-      await action(formData);
+      const result = await action(formData);
+      const savedId = (result && typeof result === 'object' && 'id' in result ? String((result as { id?: string }).id || '') : '') || currentPostId;
+      if (savedId && savedId !== currentPostId) {
+        setCurrentPostId(savedId);
+        window.history.replaceState(null, '', `/write?id=${savedId}`);
+      }
       setSaveState('saved');
       const now = new Date();
       setLastSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
@@ -279,7 +285,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     }
 
     const payload = {
-      id: post?.id,
+      id: currentPostId || undefined,
       title: titleValue,
       excerpt: excerpt.trim(),
       content: contentHtml,
@@ -294,7 +300,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   return (
     <>
       <form ref={formRef} className="space-y-5 pb-24 md:pb-0">
-        <input type="hidden" name="id" value={post?.id || ''} />
+        <input type="hidden" name="id" value={currentPostId} />
         <input type="hidden" name="content" value={contentHtml} />
         <input type="hidden" name="coverImage" value={coverImage} />
         <input type="hidden" name="backgroundImage" value={backgroundImage} />
@@ -495,7 +501,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
       <AppModal
         open={showSaveConfirm}
         title="确认保存草稿"
-        description={post?.id ? '将覆盖当前草稿内容。' : '将创建新的草稿内容。'}
+        description={currentPostId ? '将覆盖当前草稿内容。' : '将创建新的草稿内容。'}
         onCancel={() => setShowSaveConfirm(false)}
         onConfirm={async () => {
           setShowSaveConfirm(false);
