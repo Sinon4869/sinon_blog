@@ -23,6 +23,30 @@ function parseLineRangeHash(hash: string) {
   return { start: Math.min(a, b), end: Math.max(a, b) };
 }
 
+function normalizeCodeText(input: string) {
+  let raw = input || '';
+
+  // Decode common escaped newlines/tabs first.
+  raw = raw
+    .replace(/\\\\r\\\\n/g, '\n')
+    .replace(/\\\\n/g, '\n')
+    .replace(/\\\\t/g, '\t')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t');
+
+  // Some malformed payloads store line breaks as repeated backslashes before next token.
+  // Only apply heuristic when content is effectively single-line.
+  if (!raw.includes('\n') && raw.includes('\\')) {
+    raw = raw
+      .replace(/\\{2,}(?=[A-Za-z_$])/g, '\n')
+      .replace(/\\{1,}(?=[}\]])/g, '\n')
+      .replace(/\\{3,}/g, '\n');
+  }
+
+  return raw.replace(/\n{3,}/g, '\n\n');
+}
+
 export function PostReadingEnhancements({ containerId = 'post-content' }: { containerId?: string }) {
   const [toc, setToc] = useState<TocItem[]>([]);
   const [progress, setProgress] = useState(0);
@@ -98,15 +122,7 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       const className = code?.className || '';
       const lang = (className.match(/language-([a-zA-Z0-9]+)/)?.[1] || 'text').toLowerCase();
 
-      let raw = code?.textContent || pre.innerText || '';
-      // Normalize escaped newlines/tabs from stored markdown/html payloads.
-      raw = raw
-        .replace(/\\\\r\\\\n/g, '\n')
-        .replace(/\\\\n/g, '\n')
-        .replace(/\\\\t/g, '\t')
-        .replace(/\\r\\n/g, '\n')
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t');
+      const raw = normalizeCodeText(code?.textContent || pre.innerText || '');
       if (code) code.textContent = raw;
 
       if (code && !code.classList.contains('hljs')) {
