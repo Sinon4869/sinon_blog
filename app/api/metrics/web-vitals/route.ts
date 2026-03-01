@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { log } from '@/lib/logger';
 import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
@@ -10,13 +11,7 @@ export async function POST(req: Request) {
   const payload = await req.json().catch(() => null);
   if (!payload) return NextResponse.json({ ok: false }, { status: 400 });
 
-  console.info(
-    JSON.stringify({
-      type: 'web_vitals',
-      ts: new Date().toISOString(),
-      ...payload
-    })
-  );
+  log('info', 'web_vitals', payload as Record<string, unknown>);
 
   return NextResponse.json({ ok: true });
 }

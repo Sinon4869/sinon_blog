@@ -5,6 +5,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
 import { env } from './env';
+import { log } from './logger';
 import { prisma } from './prisma';
 import { SUPER_ADMIN_EMAIL, isRegistrationEnabled } from './site-settings';
 
@@ -24,14 +25,7 @@ function maskEmail(email?: string | null) {
 }
 
 function authAudit(event: string, detail: Record<string, unknown> = {}) {
-  console.info(
-    JSON.stringify({
-      type: 'auth_audit',
-      event,
-      ts: new Date().toISOString(),
-      ...detail
-    })
-  );
+  log('info', `auth_${event}`, detail);
 }
 
 export const authOptions: NextAuthOptions = {
