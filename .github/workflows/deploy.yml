@@ -50,6 +50,9 @@ jobs:
           test ! -f package-lock.json || (echo "package-lock.json should not exist" && exit 1)
           grep -q '"packageManager": "pnpm@' package.json || (echo "packageManager must be pnpm" && exit 1)
 
+      - name: Lint check
+        run: pnpm lint
+
       - name: Build route integrity check
         run: pnpm build
 
