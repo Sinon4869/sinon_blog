@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import type { Route } from 'next';
@@ -8,6 +7,14 @@ import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
 type Params = { slug: string };
+type CategoryPost = {
+  id: string;
+  title: string;
+  excerpt: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  tags: Array<{ tag: { id: string; name: string; slug: string } }>;
+};
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
@@ -50,7 +57,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
       </section>
 
       <section className="space-y-3">
-        {posts.map((post: any) => (
+        {posts.map((post: CategoryPost) => (
           <article key={post.id} className="card">
             <p className="text-xs text-zinc-500">{formatDate(post.publishedAt || post.createdAt)}</p>
             <Link href={buildPostPath(post) as Route} className="mt-1 block text-xl font-semibold text-zinc-800 hover:underline">
@@ -58,7 +65,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
             </Link>
             <p className="mt-2 text-sm text-zinc-600">{post.excerpt || '暂无摘要'}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {post.tags.map((t: any) => (
+              {post.tags.map((t: CategoryPost['tags'][number]) => (
                 <Link key={t.tag.id} href={`/category/${encodeURIComponent(t.tag.slug)}` as Route} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-100">
                   #{t.tag.name}
                 </Link>

@@ -1,11 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import type { Route } from 'next';
 
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
-type Group = { key: string; label: string; posts: any[] };
+type ArchivePost = {
+  id: string;
+  title: string;
+  publishedAt: Date | null;
+  createdAt: Date;
+  tags: Array<{ tag: { id: string; name: string; slug: string } }>;
+};
+
+type ArchiveTag = { id: string; name: string; slug: string };
+
+type Group = { key: string; label: string; posts: ArchivePost[] };
 
 function monthKey(dateLike: Date | string) {
   const d = new Date(dateLike);
@@ -33,7 +42,7 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
       : {})
   };
 
-  const [postsRaw, tags] = await Promise.all([
+  const [postsRaw, tagsRaw] = await Promise.all([
     prisma.post.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
@@ -49,7 +58,13 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
     prisma.tag.findMany({ take: 40 })
   ]);
 
-  const posts = postsRaw.filter((p: any) => {
+  const tags: ArchiveTag[] = (tagsRaw as Array<Record<string, unknown>>).map((t) => ({
+    id: String(t.id || ''),
+    name: String(t.name || ''),
+    slug: String(t.slug || '')
+  }));
+
+  const posts = postsRaw.filter((p: ArchivePost) => {
     const d = new Date(p.publishedAt || p.createdAt);
     const y = String(d.getFullYear());
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -67,7 +82,7 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
   }
 
   const groups = Array.from(map.values()).sort((a, b) => (a.key < b.key ? 1 : -1));
-  const years = Array.from(new Set(postsRaw.map((p: any) => String(new Date(p.publishedAt || p.createdAt).getFullYear())))).sort((a, b) => (a < b ? 1 : -1));
+  const years = Array.from(new Set(postsRaw.map((p: ArchivePost) => String(new Date(p.publishedAt || p.createdAt).getFullYear())))).sort((a, b) => (a < b ? 1 : -1));
 
   return (
     <div className="space-y-5">
@@ -96,7 +111,7 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
         </select>
         <select className="input" name="tag" defaultValue={tag}>
           <option value="">全部分类</option>
-          {tags.map((t: any) => (
+          {tags.map((t: ArchiveTag) => (
             <option key={t.id} value={t.slug}>
               {t.name}
             </option>
@@ -111,7 +126,7 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
         <section key={g.key} className="card space-y-2">
           <h2 className="text-lg font-semibold text-zinc-800">{g.label}</h2>
           <ul className="space-y-1">
-            {g.posts.map((p: any) => (
+            {g.posts.map((p: ArchivePost) => (
               <li key={p.id} className="text-sm text-zinc-700">
                 <Link href={buildPostPath(p) as Route} className="hover:underline">
                   {p.title}
