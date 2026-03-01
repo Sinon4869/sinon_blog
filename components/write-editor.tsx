@@ -120,6 +120,25 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const [dirty, setDirty] = useState(false);
   const [codeLang, setCodeLang] = useState('typescript');
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('write_editor_code_lang') || '';
+      if (saved && CODE_LANG_OPTIONS.includes(saved)) {
+        setCodeLang(saved);
+      }
+    } catch {
+      // ignore storage read errors
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('write_editor_code_lang', codeLang);
+    } catch {
+      // ignore storage write errors
+    }
+  }, [codeLang]);
+
   const normalizedOptions = Array.from(new Set([...(availableCategories || []).map((v) => v.trim()).filter(Boolean), ...selectedCategories]));
   const filteredOptions = useMemo(() => {
     const q = categoryQuery.trim().toLowerCase();
