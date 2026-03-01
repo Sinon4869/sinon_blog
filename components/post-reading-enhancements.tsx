@@ -92,16 +92,22 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       pre.classList.add('group');
       pre.style.position = 'relative';
       pre.style.paddingLeft = '3.2rem';
+      pre.style.paddingTop = '2.2rem';
 
       const code = pre.querySelector('code');
       const className = code?.className || '';
       const lang = (className.match(/language-([a-zA-Z0-9]+)/)?.[1] || 'text').toLowerCase();
 
       let raw = code?.textContent || pre.innerText || '';
-      if (raw.includes('\\n') && !raw.includes('\n')) {
-        raw = raw.replace(/\\n/g, '\n');
-        if (code) code.textContent = raw;
-      }
+      // Normalize escaped newlines/tabs from stored markdown/html payloads.
+      raw = raw
+        .replace(/\\\\r\\\\n/g, '\n')
+        .replace(/\\\\n/g, '\n')
+        .replace(/\\\\t/g, '\t')
+        .replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t');
+      if (code) code.textContent = raw;
 
       if (code && !code.classList.contains('hljs')) {
         try {
