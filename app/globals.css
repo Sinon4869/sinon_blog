@@ -185,6 +185,7 @@ body.modal-open .admin-notice {
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
+  color: #e6edf3;
 }
 
 .prose pre .hljs-comment,
