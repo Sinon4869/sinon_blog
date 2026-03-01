@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import type { Route } from 'next';
 
@@ -30,6 +29,15 @@ function renderHighlighted(text: string, keyword: string) {
 type SearchParams = {
   q?: string;
   page?: string;
+};
+
+type SearchPost = {
+  id: string;
+  title: string;
+  excerpt: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  tags: Array<{ tag: { id: string; name: string; slug: string } }>;
 };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -94,7 +102,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         关键词 <span className="font-semibold">“{q}”</span> 共找到 {total} 条
       </p>
 
-      {posts.map((post: any) => (
+      {posts.map((post: SearchPost) => (
         <article className="card" key={post.id}>
           <Link className="text-lg font-semibold leading-snug hover:underline sm:text-xl" href={buildPostPath(post) as Route}>
             {renderHighlighted(post.title || '', q)}
@@ -102,7 +110,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <p className="mt-1 text-sm text-zinc-600">{formatDate(post.publishedAt || post.createdAt)}</p>
           <p className="mt-2 text-zinc-700">{renderHighlighted(post.excerpt || '暂无摘要', q)}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {post.tags.map((t: any) => (
+            {post.tags.map((t: SearchPost['tags'][number]) => (
               <span key={t.tag.id} className="rounded bg-zinc-100 px-2 py-1 text-xs">
                 #{t.tag.name}
               </span>
