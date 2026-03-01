@@ -56,6 +56,9 @@ jobs:
       - name: Build route integrity check
         run: pnpm build
 
+      - name: Test check
+        run: pnpm test
+
       - name: Validate Cloudflare secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
