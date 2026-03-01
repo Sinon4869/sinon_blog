@@ -85,7 +85,7 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
     );
 
     const pres = Array.from(root.querySelectorAll('pre')) as HTMLPreElement[];
-    pres.forEach((pre, preIndex) => {
+    pres.forEach(async (pre, preIndex) => {
       if (pre.dataset.enhanced === '1') return;
       pre.dataset.enhanced = '1';
       pre.dataset.codeIndex = String(preIndex + 1);
@@ -96,10 +96,31 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       const code = pre.querySelector('code');
       const className = code?.className || '';
       const lang = (className.match(/language-([a-zA-Z0-9]+)/)?.[1] || 'text').toLowerCase();
-      const lines = (code?.textContent || pre.innerText || '').replace(/\n$/, '').split('\n');
+
+      let raw = code?.textContent || pre.innerText || '';
+      if (raw.includes('\\n') && !raw.includes('\n')) {
+        raw = raw.replace(/\\n/g, '\n');
+        if (code) code.textContent = raw;
+      }
+
+      if (code && !code.classList.contains('hljs')) {
+        try {
+          const hljs = (await import('highlight.js/lib/common')).default;
+          if (lang !== 'text' && hljs.getLanguage(lang)) {
+            code.innerHTML = hljs.highlight(raw, { language: lang }).value;
+          } else {
+            code.innerHTML = hljs.highlightAuto(raw).value;
+          }
+          code.classList.add('hljs');
+        } catch {
+          // ignore highlight failure, keep plain text
+        }
+      }
+
+      const lines = raw.replace(/\n$/, '').split('\n');
 
       const gutter = document.createElement('div');
-      gutter.className = 'absolute left-0 top-8 bottom-2 w-10 overflow-hidden border-r border-zinc-200/70 bg-white/45 px-1 py-1 text-right text-[11px] text-zinc-400';
+      gutter.className = 'absolute left-0 top-8 bottom-2 w-10 overflow-hidden border-r border-zinc-200/70 bg-white/55 px-1 py-1 text-right text-[11px] text-zinc-600';
 
       const lineButtons: HTMLButtonElement[] = [];
       let rangeStart: number | null = null;
