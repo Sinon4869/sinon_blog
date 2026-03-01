@@ -25,6 +25,32 @@ type WriteEditorProps = {
   availableCategories?: string[];
 };
 
+type EditorInsertCap = {
+  document: Array<{ id: string }>;
+  insertBlocks?: (blocks: Array<{ type: string; props?: Record<string, unknown>; content?: string }>, referenceId: string, placement: 'before' | 'after') => void;
+};
+
+const CODE_LANG_OPTIONS = [
+  'text',
+  'javascript',
+  'typescript',
+  'tsx',
+  'jsx',
+  'python',
+  'go',
+  'rust',
+  'java',
+  'kotlin',
+  'swift',
+  'bash',
+  'json',
+  'yaml',
+  'sql',
+  'html',
+  'css',
+  'markdown'
+];
+
 function looksLikeHtml(input: string) {
   return /<\/?[a-z][\s\S]*>/i.test(input);
 }
@@ -92,6 +118,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const [feedback, setFeedback] = useState('');
   const [contentHtml, setContentHtml] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [codeLang, setCodeLang] = useState('typescript');
 
   const normalizedOptions = Array.from(new Set([...(availableCategories || []).map((v) => v.trim()).filter(Boolean), ...selectedCategories]));
   const filteredOptions = useMemo(() => {
@@ -280,6 +307,23 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     setNewCategory('');
   }
 
+  async function insertCodeBlockTemplate() {
+    const template = `\n\n\`\`\`${codeLang}\n// your code here\n\`\`\`\n`;
+    const cap = editor as unknown as EditorInsertCap;
+    const tail = cap.document?.[cap.document.length - 1]?.id;
+    if (tail && typeof cap.insertBlocks === 'function') {
+      cap.insertBlocks([{ type: 'paragraph', content: template }], tail, 'after');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(template);
+      setFeedback('已复制代码模板，直接粘贴到编辑器即可');
+    } catch {
+      setFeedback('插入失败，请手动输入代码块');
+    }
+  }
+
   function openPublishPreview() {
     const titleValue = title.trim();
     if (!titleValue || !hasMeaningfulHtmlContent(contentHtml)) {
@@ -443,9 +487,24 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
           </div>
         </details>
 
-        <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
           <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white">BlockNote Editor</span>
           <span className="text-xs text-zinc-500">Slash 命令、拖拽/粘贴图片上传由 BlockNote 原生支持</span>
+          <span className="ml-auto text-xs text-zinc-500">代码语言</span>
+          <select className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700" value={codeLang} onChange={(e) => setCodeLang(e.target.value)}>
+            {CODE_LANG_OPTIONS.map((lang) => (
+              <option key={lang} value={lang}>
+                {lang}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--line-strong)] bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+            onClick={insertCodeBlockTemplate}
+          >
+            插入代码模板
+          </button>
         </div>
 
         <div className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
