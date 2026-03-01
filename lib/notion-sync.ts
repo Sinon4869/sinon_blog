@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { env } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 
@@ -182,8 +183,8 @@ async function getMapByNotionPageId(notionPageId: string): Promise<SyncMapRow | 
 export async function syncPostToNotion(postId: string, trigger: 'save' | 'publish' | 'toggle-publish') {
   try {
     await ensureSyncTables();
-    const notionToken = process.env.NOTION_TOKEN;
-    const notionDatabaseId = process.env.NOTION_DATABASE_ID;
+    const notionToken = env.NOTION_TOKEN;
+    const notionDatabaseId = env.NOTION_DATABASE_ID;
 
     if (!notionToken || !notionDatabaseId) {
       await insertEvent({ direction: 'blog_to_notion', postId, status: 'skipped', payload: { trigger }, error: 'missing_notion_env' });
@@ -347,7 +348,7 @@ export async function syncPostToNotion(postId: string, trigger: 'save' | 'publis
 
 export async function archiveNotionByPostId(postId: string) {
   try {
-    const notionToken = process.env.NOTION_TOKEN;
+    const notionToken = env.NOTION_TOKEN;
     if (!notionToken) return;
     const mapping = await getMapByPostId(postId);
     if (!mapping?.notion_page_id) return;

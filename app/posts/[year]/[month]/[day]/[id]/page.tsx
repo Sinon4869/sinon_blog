@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 
 import { toggleFavorite } from '@/app/actions';
 import { authOptions } from '@/lib/auth';
+import { getSiteUrl } from '@/lib/env';
 import { MdxContent } from '@/lib/mdx';
 import { prisma } from '@/lib/prisma';
 import { getPersonalIntro, isAnonymousCommentEnabled } from '@/lib/site-settings';
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ year: str
   const post = await findPostById(id);
   if (!post) return { title: '文章不存在' };
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
+  const base = getSiteUrl('https://sinon.live');
   const postPath = buildPostPath(post as { id: string; publishedAt?: Date | string | null; createdAt?: Date | string | null });
   const url = `${base}${postPath}`;
   const title = (post as any).seo_title || post.title;
@@ -104,7 +105,7 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
       })
     : null;
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://sinon.live';
+  const base = getSiteUrl('https://sinon.live');
   const postUrl = `${base}${canonicalPath}`;
   const image = (post as any).cover_image || (post as any).background_image || undefined;
   const tagSlugs = post.tags.map((t: { tag: { slug: string } }) => t.tag.slug).filter(Boolean);

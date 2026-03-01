@@ -4,6 +4,7 @@ import { SmartImage } from '@/components/smart-image';
 import Link from 'next/link';
 import type { Route } from 'next';
 
+import { getSiteUrl } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
@@ -107,7 +108,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const shareBase = (process.env.NEXT_PUBLIC_SITE_URL || '').trim() || 'https://sinon.live';
+  const shareBase = getSiteUrl('https://sinon.live');
   const featured = posts[0];
   const rest = posts.slice(1);
   const updatedAt = posts[0]?.publishedAt || posts[0]?.createdAt;

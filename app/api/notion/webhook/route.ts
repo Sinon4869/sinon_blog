@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
 import { authOptions } from '@/lib/auth';
+import { getNotionWebhookOrSyncToken } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 
 const MAX_WEBHOOK_BYTES = 256 * 1024;
@@ -12,7 +13,7 @@ function cuidLike() {
 
 export async function POST(req: Request) {
   const token = req.headers.get('x-sync-token') || req.headers.get('x-webhook-token') || '';
-  const expected = process.env.NOTION_WEBHOOK_TOKEN || process.env.NOTION_SYNC_TOKEN || '';
+  const expected = getNotionWebhookOrSyncToken();
   if (expected) {
     if (token !== expected) {
       return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
