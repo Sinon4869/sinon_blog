@@ -25,31 +25,7 @@ type WriteEditorProps = {
   availableCategories?: string[];
 };
 
-type EditorInsertCap = {
-  document: Array<{ id: string }>;
-  insertBlocks?: (blocks: Array<{ type: string; props?: Record<string, unknown>; content?: string }>, referenceId: string, placement: 'before' | 'after') => void;
-};
 
-const CODE_LANG_OPTIONS = [
-  'text',
-  'javascript',
-  'typescript',
-  'tsx',
-  'jsx',
-  'python',
-  'go',
-  'rust',
-  'java',
-  'kotlin',
-  'swift',
-  'bash',
-  'json',
-  'yaml',
-  'sql',
-  'html',
-  'css',
-  'markdown'
-];
 
 function looksLikeHtml(input: string) {
   return /<\/?[a-z][\s\S]*>/i.test(input);
@@ -118,26 +94,6 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const [feedback, setFeedback] = useState('');
   const [contentHtml, setContentHtml] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [codeLang, setCodeLang] = useState('typescript');
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem('write_editor_code_lang') || '';
-      if (saved && CODE_LANG_OPTIONS.includes(saved)) {
-        setCodeLang(saved);
-      }
-    } catch {
-      // ignore storage read errors
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('write_editor_code_lang', codeLang);
-    } catch {
-      // ignore storage write errors
-    }
-  }, [codeLang]);
 
   const normalizedOptions = Array.from(new Set([...(availableCategories || []).map((v) => v.trim()).filter(Boolean), ...selectedCategories]));
   const filteredOptions = useMemo(() => {
@@ -150,7 +106,6 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const editorWrapRef = useRef<HTMLDivElement | null>(null);
   const bootstrappedRef = useRef(false);
   const initialSnapshotRef = useRef('');
   const savingLockRef = useRef(false);
@@ -327,37 +282,6 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     setNewCategory('');
   }
 
-  function focusEditorSoon() {
-    requestAnimationFrame(() => {
-      const root = editorWrapRef.current;
-      const input = root?.querySelector('[contenteditable="true"]') as HTMLElement | null;
-      if (input) {
-        input.focus();
-        input.scrollIntoView({ block: 'nearest' });
-      }
-    });
-  }
-
-  async function insertCodeBlockTemplate() {
-    const template = `\n\n\`\`\`${codeLang}\n// your code here\n\`\`\`\n`;
-    const cap = editor as unknown as EditorInsertCap;
-    const tail = cap.document?.[cap.document.length - 1]?.id;
-    if (tail && typeof cap.insertBlocks === 'function') {
-      cap.insertBlocks([{ type: 'paragraph', content: template }], tail, 'after');
-      setFeedback(`已插入 ${codeLang} 代码模板`);
-      focusEditorSoon();
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(template);
-      setFeedback('已复制代码模板，直接粘贴到编辑器即可');
-      focusEditorSoon();
-    } catch {
-      setFeedback('插入失败，请手动输入代码块');
-    }
-  }
-
   function openPublishPreview() {
     const titleValue = title.trim();
     if (!titleValue || !hasMeaningfulHtmlContent(contentHtml)) {
@@ -524,25 +448,10 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
           <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white">BlockNote Editor</span>
           <span className="text-xs text-zinc-500">Slash 命令、拖拽/粘贴图片上传由 BlockNote 原生支持</span>
-          <span className="ml-auto text-xs text-zinc-500">代码语言</span>
-          <select className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700" value={codeLang} onChange={(e) => setCodeLang(e.target.value)}>
-            {CODE_LANG_OPTIONS.map((lang) => (
-              <option key={lang} value={lang}>
-                {lang}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--line-strong)] bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
-            onClick={insertCodeBlockTemplate}
-          >
-            插入代码模板
-          </button>
         </div>
 
         <div className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div ref={editorWrapRef} className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
+          <div className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
             <BlockNoteView
               editor={editor}
               onChange={() => {
