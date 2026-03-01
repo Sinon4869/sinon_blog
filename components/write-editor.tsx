@@ -150,6 +150,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const coverRef = useRef<HTMLInputElement | null>(null);
   const backgroundRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const editorWrapRef = useRef<HTMLDivElement | null>(null);
   const bootstrappedRef = useRef(false);
   const initialSnapshotRef = useRef('');
   const savingLockRef = useRef(false);
@@ -326,18 +327,32 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
     setNewCategory('');
   }
 
+  function focusEditorSoon() {
+    requestAnimationFrame(() => {
+      const root = editorWrapRef.current;
+      const input = root?.querySelector('[contenteditable="true"]') as HTMLElement | null;
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }
+
   async function insertCodeBlockTemplate() {
     const template = `\n\n\`\`\`${codeLang}\n// your code here\n\`\`\`\n`;
     const cap = editor as unknown as EditorInsertCap;
     const tail = cap.document?.[cap.document.length - 1]?.id;
     if (tail && typeof cap.insertBlocks === 'function') {
       cap.insertBlocks([{ type: 'paragraph', content: template }], tail, 'after');
+      setFeedback(`已插入 ${codeLang} 代码模板`);
+      focusEditorSoon();
       return;
     }
 
     try {
       await navigator.clipboard.writeText(template);
       setFeedback('已复制代码模板，直接粘贴到编辑器即可');
+      focusEditorSoon();
     } catch {
       setFeedback('插入失败，请手动输入代码块');
     }
@@ -527,7 +542,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
         </div>
 
         <div className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
+          <div ref={editorWrapRef} className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
             <BlockNoteView
               editor={editor}
               onChange={() => {
