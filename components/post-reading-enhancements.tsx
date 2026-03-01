@@ -14,6 +14,15 @@ function normalizeAnchorId(input: string) {
   return s || 'section';
 }
 
+function parseLineRangeHash(hash: string) {
+  const raw = (hash || '').replace(/^#/, '');
+  const m = raw.match(/^L(\d+)(?:-L(\d+))?$/i);
+  if (!m) return null;
+  const a = Math.max(1, Number(m[1] || '1'));
+  const b = Math.max(1, Number(m[2] || m[1] || '1'));
+  return { start: Math.min(a, b), end: Math.max(a, b) };
+}
+
 export function PostReadingEnhancements({ containerId = 'post-content' }: { containerId?: string }) {
   const [toc, setToc] = useState<TocItem[]>([]);
   const [progress, setProgress] = useState(0);
@@ -76,15 +85,60 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
     );
 
     const pres = Array.from(root.querySelectorAll('pre')) as HTMLPreElement[];
-    pres.forEach((pre) => {
+    pres.forEach((pre, preIndex) => {
       if (pre.dataset.enhanced === '1') return;
       pre.dataset.enhanced = '1';
+      pre.dataset.codeIndex = String(preIndex + 1);
       pre.classList.add('group');
       pre.style.position = 'relative';
+      pre.style.paddingLeft = '3.2rem';
 
       const code = pre.querySelector('code');
       const className = code?.className || '';
       const lang = (className.match(/language-([a-zA-Z0-9]+)/)?.[1] || 'text').toLowerCase();
+      const lines = (code?.textContent || pre.innerText || '').replace(/\n$/, '').split('\n');
+
+      const gutter = document.createElement('div');
+      gutter.className = 'absolute left-0 top-8 bottom-2 w-10 overflow-hidden border-r border-zinc-200/70 bg-white/45 px-1 py-1 text-right text-[11px] text-zinc-400';
+
+      const lineButtons: HTMLButtonElement[] = [];
+      let rangeStart: number | null = null;
+
+      const applyRange = (start: number, end: number) => {
+        lineButtons.forEach((btn, idx) => {
+          const line = idx + 1;
+          const active = line >= start && line <= end;
+          btn.className = active
+            ? 'block w-full rounded px-1 text-amber-700 font-semibold bg-amber-100/60'
+            : 'block w-full rounded px-1 text-zinc-400 hover:text-zinc-700';
+        });
+        pre.classList.toggle('ring-1', true);
+        pre.classList.toggle('ring-amber-300', true);
+      };
+
+      lines.forEach((_, i) => {
+        const line = i + 1;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = String(line);
+        b.className = 'block w-full rounded px-1 text-zinc-400 hover:text-zinc-700';
+        b.onclick = (ev) => {
+          const isShift = (ev as MouseEvent).shiftKey;
+          if (isShift && rangeStart != null) {
+            const a = Math.min(rangeStart, line);
+            const z = Math.max(rangeStart, line);
+            window.history.replaceState(null, '', `#L${a}-L${z}`);
+            applyRange(a, z);
+            rangeStart = null;
+          } else {
+            rangeStart = line;
+            window.history.replaceState(null, '', `#L${line}`);
+            applyRange(line, line);
+          }
+        };
+        lineButtons.push(b);
+        gutter.appendChild(b);
+      });
 
       const toolbar = document.createElement('div');
       toolbar.className = 'absolute right-2 top-2 z-10 flex items-center gap-1';
@@ -92,6 +146,17 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       const langBadge = document.createElement('span');
       langBadge.textContent = lang;
       langBadge.className = 'rounded border border-zinc-300 bg-white/90 px-2 py-1 text-[11px] text-zinc-600';
+
+      const lineBtn = document.createElement('button');
+      lineBtn.type = 'button';
+      lineBtn.textContent = '行号开';
+      lineBtn.className = 'rounded border border-zinc-300 bg-white/90 px-2 py-1 text-xs text-zinc-700';
+      lineBtn.onclick = () => {
+        const hidden = gutter.style.display === 'none';
+        gutter.style.display = hidden ? 'block' : 'none';
+        pre.style.paddingLeft = hidden ? '3.2rem' : '0.75rem';
+        lineBtn.textContent = hidden ? '行号开' : '行号关';
+      };
 
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button';
@@ -121,9 +186,17 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       };
 
       toolbar.appendChild(langBadge);
+      toolbar.appendChild(lineBtn);
       toolbar.appendChild(copyBtn);
       toolbar.appendChild(foldBtn);
+      pre.appendChild(gutter);
       pre.appendChild(toolbar);
+
+      const range = parseLineRangeHash(window.location.hash);
+      if (range) {
+        applyRange(range.start, range.end);
+        pre.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
 
     const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[];
