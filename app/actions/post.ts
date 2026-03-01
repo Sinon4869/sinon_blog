@@ -84,6 +84,8 @@ export async function savePost(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/dashboard');
   revalidatePath(buildPostPath(post));
+
+  return { id: post.id };
 }
 
 export async function deletePost(formData: FormData) {
