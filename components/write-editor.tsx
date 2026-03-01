@@ -106,6 +106,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const formRef = useRef<HTMLFormElement | null>(null);
   const bootstrappedRef = useRef(false);
   const initialSnapshotRef = useRef('');
+  const savingLockRef = useRef(false);
 
   const editor = useCreateBlockNote({
     uploadFile: async (file) => {
@@ -207,7 +208,8 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   }
 
   async function saveDraftWithConfirm() {
-    if (!formRef.current) return;
+    if (!formRef.current || saving || savingLockRef.current) return;
+    savingLockRef.current = true;
     setSaving(true);
     setSaveState('saving');
     setFeedback('');
@@ -234,6 +236,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
       setFeedback('保存失败，请重试');
     } finally {
       setSaving(false);
+      savingLockRef.current = false;
     }
   }
 
