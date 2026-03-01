@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from 'next-auth';
+import type { Session } from 'next-auth';
 
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -9,7 +9,7 @@ type NavTag = { id: string; name: string; slug: string };
 
 
 export async function Navbar() {
-  let session: any = null;
+  let session: Session | null = null;
   let tags: NavTag[] = [];
   let siteTitle = 'Komorebi';
   let siteIcon = '木';
