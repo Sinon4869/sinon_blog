@@ -105,7 +105,7 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
 
       if (code && !code.classList.contains('hljs')) {
         try {
-          const hljs = (await import('highlight.js/lib/common')).default;
+          const hljs = (await import('highlight.js')).default;
           if (lang !== 'text' && hljs.getLanguage(lang)) {
             code.innerHTML = hljs.highlight(raw, { language: lang }).value;
           } else {
