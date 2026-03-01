@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { QuickShare } from '@/components/quick-share';
 import { SmartImage } from '@/components/smart-image';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -106,6 +107,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const shareBase = (process.env.NEXT_PUBLIC_SITE_URL || '').trim() || 'https://sinon.live';
   const featured = posts[0];
   const rest = posts.slice(1);
   const updatedAt = posts[0]?.publishedAt || posts[0]?.createdAt;
@@ -180,6 +182,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   ))}
                   {(featured.tags || []).length > 2 && <span>+{featured.tags.length - 2}</span>}
                 </div>
+                <QuickShare url={`${shareBase}${buildPostPath(featured)}`} title={featured.title} className="flex flex-wrap items-center gap-2" />
               </div>
             </article>
           )}
@@ -213,6 +216,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                       {extraCount > 0 && <span>+{extraCount}</span>}
                     </div>
                     <p className="line-clamp-2 text-sm leading-7 text-zinc-600 sm:line-clamp-3">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
+                    <QuickShare url={`${shareBase}${buildPostPath(post)}`} title={post.title} className="flex flex-wrap items-center gap-2" />
                   </div>
                 </article>
               );

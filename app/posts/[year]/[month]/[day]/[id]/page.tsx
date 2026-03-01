@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { PostReadingEnhancements } from '@/components/post-reading-enhancements';
+import { QuickShare } from '@/components/quick-share';
 import { SmartImage } from '@/components/smart-image';
 import type { Metadata } from 'next';
 import type { Route } from 'next';
@@ -234,14 +235,17 @@ export default async function PostDetail({ params }: { params: Promise<{ year: s
           <article id="post-content" className="card rounded-2xl border-[var(--line-soft)] bg-white/78 p-6 sm:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-soft)] pb-4">
               <p className="section-kicker">正文</p>
-              {session?.user && (
-                <form action={toggleFavorite}>
-                  <input type="hidden" name="postId" value={post.id} />
-                  <button className="btn-secondary" type="submit">
-                    {favorited ? '取消收藏' : '收藏文章'}
-                  </button>
-                </form>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <QuickShare url={postUrl} title={post.title} />
+                {session?.user && (
+                  <form action={toggleFavorite}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <button className="btn-secondary" type="submit">
+                      {favorited ? '取消收藏' : '收藏文章'}
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
             <MdxContent source={post.content} />
           </article>
