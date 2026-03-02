@@ -4,6 +4,7 @@ import { SmartImage } from '@/components/smart-image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
+import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs } from '@blocknote/core';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/core/style.css';
 import '@blocknote/mantine/style.css';
@@ -25,7 +26,34 @@ type WriteEditorProps = {
   availableCategories?: string[];
 };
 
-
+const editorSchema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    codeBlock: createCodeBlockSpec({
+      defaultLanguage: 'typescript',
+      supportedLanguages: {
+        text: { name: 'Plain Text', aliases: ['txt', 'plaintext'] },
+        javascript: { name: 'JavaScript', aliases: ['js'] },
+        typescript: { name: 'TypeScript', aliases: ['ts'] },
+        jsx: { name: 'JSX' },
+        tsx: { name: 'TSX' },
+        bash: { name: 'Bash', aliases: ['sh', 'shell'] },
+        json: { name: 'JSON' },
+        yaml: { name: 'YAML', aliases: ['yml'] },
+        html: { name: 'HTML' },
+        css: { name: 'CSS' },
+        sql: { name: 'SQL' },
+        python: { name: 'Python', aliases: ['py'] },
+        go: { name: 'Go' },
+        rust: { name: 'Rust', aliases: ['rs'] },
+        java: { name: 'Java' },
+        kotlin: { name: 'Kotlin', aliases: ['kt'] },
+        swift: { name: 'Swift' },
+        markdown: { name: 'Markdown', aliases: ['md'] }
+      }
+    })
+  }
+});
 
 function looksLikeHtml(input: string) {
   return /<\/?[a-z][\s\S]*>/i.test(input);
@@ -111,6 +139,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
   const savingLockRef = useRef(false);
 
   const editor = useCreateBlockNote({
+    schema: editorSchema,
     uploadFile: async (file) => {
       setUploading(true);
       setFeedback('图片上传中...');
