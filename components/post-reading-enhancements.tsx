@@ -142,7 +142,7 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
       const lines = raw.replace(/\n$/, '').split('\n');
 
       const gutter = document.createElement('div');
-      gutter.className = 'absolute left-0 top-8 bottom-2 w-10 overflow-hidden border-r border-white/15 bg-transparent px-1 py-1 text-right text-[11px] text-zinc-400';
+      gutter.className = 'absolute left-0 top-8 bottom-2 w-10 overflow-hidden bg-transparent px-1 py-1 text-right text-[11px] text-zinc-500';
 
       const lineButtons: HTMLButtonElement[] = [];
       let rangeStart: number | null = null;
