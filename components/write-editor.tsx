@@ -454,6 +454,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
           <div className="min-h-[58vh] bg-white px-4 py-5 md:px-8 md:py-8">
             <BlockNoteView
               editor={editor}
+              theme="light"
               onChange={() => {
                 const nextHtml = editor.blocksToHTMLLossy(editor.document);
                 const md = editor.blocksToMarkdownLossy(editor.document);
