@@ -7,11 +7,13 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "preview:dev": "opennextjs-cloudflare build && opennextjs-cloudflare preview --env dev",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "deploy:dev": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --env dev",
+    "test": "vitest run",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "cf-typegen:dev": "wrangler types --env dev --env-interface CloudflareEnv cloudflare-env.d.ts"
@@ -24,6 +26,7 @@
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
+    "highlight.js": "^11.11.1",
     "marked": "^15.0.12",
     "next": "15.5.10",
     "next-auth": "^4.24.11",
@@ -46,6 +49,7 @@
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
+    "vitest": "^4.0.18",
     "wrangler": "^4.67.0"
   }
 }

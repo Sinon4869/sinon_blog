@@ -169,7 +169,7 @@ body.modal-open .admin-notice {
 
 .prose pre {
   border: 1px solid #3a3e45;
-  background: #151920;
+  background: #0f1726;
   border-radius: 0.8rem;
   padding: 0.95rem;
   max-width: 100%;
@@ -178,38 +178,54 @@ body.modal-open .admin-notice {
   -webkit-overflow-scrolling: touch;
 }
 
-.prose pre code {
+.prose pre code,
+.prose pre .hljs {
   display: block;
   width: max-content;
   min-width: 100%;
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
+  color: #e6edf3;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 .prose pre .hljs-comment,
 .prose pre .hljs-quote {
-  color: #8b9bb4;
+  color: #9aa8c2;
 }
 
 .prose pre .hljs-keyword,
 .prose pre .hljs-selector-tag,
 .prose pre .hljs-literal,
-.prose pre .hljs-type {
-  color: #7db3ff;
+.prose pre .hljs-type,
+.prose pre .hljs-built_in {
+  color: #8ab4ff;
 }
 
 .prose pre .hljs-string,
 .prose pre .hljs-title,
 .prose pre .hljs-section,
-.prose pre .hljs-attribute {
-  color: #9ed886;
+.prose pre .hljs-attribute,
+.prose pre .hljs-template-tag,
+.prose pre .hljs-template-variable {
+  color: #a6e3a1;
 }
 
 .prose pre .hljs-number,
 .prose pre .hljs-symbol,
-.prose pre .hljs-bullet {
-  color: #f6ba72;
+.prose pre .hljs-bullet,
+.prose pre .hljs-variable,
+.prose pre .hljs-params {
+  color: #f9c97c;
+}
+
+.prose pre .hljs-function,
+.prose pre .hljs-class,
+.prose pre .hljs-title.function_ {
+  color: #7dd3fc;
 }
 
 .prose table {

@@ -5,9 +5,10 @@ import { CommandPalette } from '@/components/command-palette';
 import { Navbar } from '@/components/navbar';
 import { PageVisitTracker } from '@/components/page-visit-tracker';
 import { WebVitalsReporter } from '@/components/web-vitals-reporter';
+import { getSiteUrl } from '@/lib/env';
 
 function resolveMetadataBase() {
-  const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
+  const raw = getSiteUrl('').trim();
   if (!raw) return new URL('https://sinon.live');
   try {
     return new URL(raw);

@@ -25,6 +25,8 @@ type WriteEditorProps = {
   availableCategories?: string[];
 };
 
+
+
 function looksLikeHtml(input: string) {
   return /<\/?[a-z][\s\S]*>/i.test(input);
 }
@@ -443,7 +445,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
           </div>
         </details>
 
-        <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2">
           <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white">BlockNote Editor</span>
           <span className="text-xs text-zinc-500">Slash 命令、拖拽/粘贴图片上传由 BlockNote 原生支持</span>
         </div>

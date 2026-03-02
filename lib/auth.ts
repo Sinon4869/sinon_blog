@@ -4,10 +4,12 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
+import { env } from './env';
+import { log } from './logger';
 import { prisma } from './prisma';
 import { SUPER_ADMIN_EMAIL, isRegistrationEnabled } from './site-settings';
 
-const adminEmails = [SUPER_ADMIN_EMAIL, ...(process.env.ADMIN_EMAILS || '')
+const adminEmails = [SUPER_ADMIN_EMAIL, ...(env.ADMIN_EMAILS || '')
   .split(',')
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean)];
@@ -23,14 +25,7 @@ function maskEmail(email?: string | null) {
 }
 
 function authAudit(event: string, detail: Record<string, unknown> = {}) {
-  console.info(
-    JSON.stringify({
-      type: 'auth_audit',
-      event,
-      ts: new Date().toISOString(),
-      ...detail
-    })
-  );
+  log('info', `auth_${event}`, detail);
 }
 
 export const authOptions: NextAuthOptions = {
@@ -86,11 +81,11 @@ export const authOptions: NextAuthOptions = {
       })
     ];
 
-    if (process.env.GOOGLE_ID && process.env.GOOGLE_SECRET) {
+    if (env.GOOGLE_ID && env.GOOGLE_SECRET) {
       providers.push(
         GoogleProvider({
-          clientId: process.env.GOOGLE_ID,
-          clientSecret: process.env.GOOGLE_SECRET
+          clientId: env.GOOGLE_ID,
+          clientSecret: env.GOOGLE_SECRET
         })
       );
     }

@@ -1,10 +1,11 @@
+import { getSiteUrl } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const base = getSiteUrl('http://localhost:3000');
   const posts = await prisma.post.findMany({ where: { published: true }, orderBy: { publishedAt: 'desc' }, take: 30 });
 
   const items = posts

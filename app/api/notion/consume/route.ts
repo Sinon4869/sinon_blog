@@ -2,12 +2,13 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
 import { authOptions } from '@/lib/auth';
+import { env } from '@/lib/env';
 import { consumePendingNotionEvents } from '@/lib/notion-sync';
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { limit?: number; token?: string };
   const token = req.headers.get('x-sync-token') || body.token;
-  const expected = process.env.NOTION_SYNC_TOKEN;
+  const expected = env.NOTION_SYNC_TOKEN;
 
   if (expected) {
     if (token !== expected) {

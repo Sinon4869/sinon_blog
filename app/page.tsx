@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { QuickShare } from '@/components/quick-share';
 import { SmartImage } from '@/components/smart-image';
 import Link from 'next/link';
 import type { Route } from 'next';
 
+import { getSiteUrl } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 import { buildPostPath, formatDate } from '@/lib/utils';
 
@@ -13,6 +14,28 @@ type HomeSearchParams = {
   tag?: string;
   page?: string;
 };
+
+type HomeTag = { id: string; name: string; slug: string };
+type HomePostTag = { tag: HomeTag };
+type HomePost = {
+  id: string;
+  title: string;
+  excerpt: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  cover_image: string | null;
+  reading_time: number | null;
+  tags: HomePostTag[];
+};
+type RecentPost = {
+  id: string;
+  title: string;
+  publishedAt: Date | null;
+  createdAt: Date;
+  cover_image: string | null;
+};
+type CategoryStat = { id: string; name: string; slug: string; post_count: number };
+type AnalyticsSummary = { today: { pv: number; uv: number }; sevenDays: { pv: number; uv: number } };
 
 function buildPageHref(q: string, tag: string, page: number) {
   const params = new URLSearchParams({
@@ -55,15 +78,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       : {})
   };
 
-  let posts: any[] = [];
+  let posts: HomePost[] = [];
   let total = 0;
-  let tags: any[] = [];
-  let recentPosts: any[] = [];
-  let categoryStats: any[] = [];
-  let analytics = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
+  let tags: HomeTag[] = [];
+  let recentPosts: RecentPost[] = [];
+  let categoryStats: CategoryStat[] = [];
+  let analytics: AnalyticsSummary = { today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } };
 
   try {
-    [posts, total, tags, recentPosts, categoryStats, analytics] = await Promise.all([
+    let tagsRaw: Array<Record<string, unknown>> = [];
+    [posts, total, tagsRaw, recentPosts, categoryStats, analytics] = await Promise.all([
       prisma.post.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
@@ -86,16 +110,22 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         orderBy: { sort_order: 'asc' },
         select: { id: true, name: true, slug: true },
         take: 30
-      }),
+      }) as Promise<Array<Record<string, unknown>>>,
       prisma.post.findMany({
         where: { published: true },
         orderBy: { publishedAt: 'desc' },
         take: 6,
         select: { id: true, title: true, publishedAt: true, createdAt: true, cover_image: true }
       }),
-      prisma.tag.adminList(),
-      prisma.analytics.summary().catch(() => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } } as any)),
+      prisma.tag.adminList() as Promise<CategoryStat[]>,
+      prisma.analytics.summary().catch((): AnalyticsSummary => ({ today: { pv: 0, uv: 0 }, sevenDays: { pv: 0, uv: 0 } })),
     ]);
+
+    tags = tagsRaw.map((t) => ({
+      id: String(t.id || ''),
+      name: String(t.name || ''),
+      slug: String(t.slug || '')
+    }));
   } catch {
     posts = [];
     total = 0;
@@ -106,6 +136,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const shareBase = getSiteUrl('https://sinon.live');
   const featured = posts[0];
   const rest = posts.slice(1);
   const updatedAt = posts[0]?.publishedAt || posts[0]?.createdAt;
@@ -142,7 +173,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <Link href={q ? (`/?q=${encodeURIComponent(q)}` as Route) : '/'} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs tracking-wide ${!tag ? 'border-[var(--bg-ink)] bg-[var(--bg-ink)] text-white' : 'border-[var(--line-strong)] text-zinc-700'}`}>
             全部
           </Link>
-          {tags.map((t: any) => (
+          {tags.map((t: HomeTag) => (
             <Link
               key={t.id}
               href={`/category/${encodeURIComponent(t.slug)}` as Route}
@@ -173,19 +204,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   <span>🗓 {formatDate(featured.publishedAt || featured.createdAt)}</span>
                   <span>·</span>
                   <span>⏱ {featured.reading_time || 1} min</span>
-                  {(featured.tags || []).slice(0, 2).map((t: any) => (
+                  {(featured.tags || []).slice(0, 2).map((t: HomePostTag) => (
                     <span key={t.tag.id} className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-zinc-600">
                       #{t.tag.name}
                     </span>
                   ))}
                   {(featured.tags || []).length > 2 && <span>+{featured.tags.length - 2}</span>}
                 </div>
+                <QuickShare url={`${shareBase}${buildPostPath(featured)}`} title={featured.title} className="flex flex-wrap items-center gap-2" />
               </div>
             </article>
           )}
 
           <div className="space-y-3">
-            {rest.map((post: any) => {
+            {rest.map((post: HomePost) => {
               const cardHref = buildPostPath(post) as Route;
               const tagsShown = (post.tags || []).slice(0, 3);
               const extraCount = Math.max(0, (post.tags || []).length - tagsShown.length);
@@ -207,12 +239,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                       <span>🗓 {formatDate(post.publishedAt || post.createdAt)}</span>
                       <span>·</span>
                       <span>⏱ {post.reading_time || 1} min</span>
-                      {tagsShown.map((t: any) => (
+                      {tagsShown.map((t: HomePostTag) => (
                         <span key={t.tag.id}>#{t.tag.name}</span>
                       ))}
                       {extraCount > 0 && <span>+{extraCount}</span>}
                     </div>
                     <p className="line-clamp-2 text-sm leading-7 text-zinc-600 sm:line-clamp-3">{truncateSummary(post.excerpt || '暂无摘要', 130)}</p>
+                    <QuickShare url={`${shareBase}${buildPostPath(post)}`} title={post.title} className="flex flex-wrap items-center gap-2" />
                   </div>
                 </article>
               );
@@ -247,7 +280,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             {recentPosts.length === 0 ? (
               <p className="text-sm text-zinc-500">暂无数据</p>
             ) : (
-              recentPosts.map((p: any) => (
+              recentPosts.map((p: RecentPost) => (
                 <Link key={p.id} href={buildPostPath(p) as Route} className="flex h-16 items-center gap-2 rounded-lg border border-[var(--line-soft)] bg-white/70 p-2 hover:bg-white">
                   {p.cover_image ? (
                     <SmartImage src={p.cover_image} alt={p.title} width={96} height={72} className="h-12 w-16 rounded object-cover" />
@@ -265,7 +298,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
           <section className="card space-y-2">
             <h3 className="text-sm font-semibold text-zinc-700">分类</h3>
-            {(categoryStats || []).slice(0, 8).map((c: any) => (
+            {(categoryStats || []).slice(0, 8).map((c: CategoryStat) => (
               <div key={c.id} className="flex items-center justify-between text-sm">
                 <Link href={`/category/${encodeURIComponent(c.slug)}` as Route} className="text-zinc-700 hover:underline">
                   {c.name}
@@ -278,7 +311,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <section className="card space-y-2">
             <h3 className="text-sm font-semibold text-zinc-700">标签</h3>
             <div className="flex flex-wrap gap-2">
-              {tags.slice(0, 20).map((t: any) => (
+              {tags.slice(0, 20).map((t: HomeTag) => (
                 <Link key={t.id} href={`/category/${encodeURIComponent(t.slug)}` as Route} className="rounded-full border border-[var(--line-soft)] px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100">
                   #{t.name}
                 </Link>

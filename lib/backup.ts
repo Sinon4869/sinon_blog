@@ -1,13 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/prisma';
 
-async function getR2() {
+type R2ListResult = { objects?: Array<{ key?: string }> };
+type R2ObjectLike = { text: () => Promise<string> };
+type R2BucketLike = {
+  put: (key: string, value: string, opts?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }) => Promise<void>;
+  list: (opts: { prefix: string; limit: number }) => Promise<R2ListResult>;
+  get: (key: string) => Promise<R2ObjectLike | null>;
+};
+type CloudflareContextLike = { env?: { BLOG_ASSETS?: R2BucketLike } };
+
+async function getR2(): Promise<R2BucketLike | null> {
   try {
-    const mod = (await import('@opennextjs/cloudflare')) as { getCloudflareContext?: (opts: { async: boolean }) => Promise<any> };
+    const mod = (await import('@opennextjs/cloudflare')) as {
+      getCloudflareContext?: (opts: { async: boolean }) => Promise<CloudflareContextLike>;
+    };
     const fn = mod.getCloudflareContext;
     if (!fn) return null;
     const ctx = await fn({ async: true });
-    return (ctx?.env as any)?.BLOG_ASSETS || null;
+    return ctx?.env?.BLOG_ASSETS || null;
   } catch {
     return null;
   }
@@ -30,7 +40,7 @@ export async function backupPostsToR2() {
   const payload = {
     exportedAt: now.toISOString(),
     count: posts.length,
-    posts: posts.map((p: any) => ({
+    posts: posts.map((p: { id: string; slug: string; title: string; excerpt?: string | null; content: string; published?: boolean | number; publishedAt?: Date | null; updatedAt?: Date | null; cover_image?: string | null; background_image?: string | null; tags?: Array<{ tag?: { name?: string | null } }>; author?: { id: string; name?: string | null; email: string } | null }) => ({ 
       id: p.id,
       slug: p.slug,
       title: p.title,
@@ -41,7 +51,7 @@ export async function backupPostsToR2() {
       updatedAt: p.updatedAt,
       coverImage: p.cover_image || null,
       backgroundImage: p.background_image || null,
-      tags: (p.tags || []).map((t: any) => t?.tag?.name).filter(Boolean),
+      tags: (p.tags || []).map((t: { tag?: { name?: string | null } }) => t?.tag?.name).filter(Boolean),
       author: p.author ? { id: p.author.id, name: p.author.name, email: p.author.email } : null
     }))
   };
@@ -63,7 +73,7 @@ export async function listBackupKeys(limit = 20) {
   if (!bucket) return { ok: false, error: 'missing_r2_binding', keys: [] as string[] } as const;
 
   const listed = await bucket.list({ prefix: 'backups/posts/', limit: Math.min(100, Math.max(1, limit)) });
-  const keys = (listed?.objects || []).map((o: any) => String(o.key || '')).filter(Boolean).sort().reverse();
+  const keys = (listed?.objects || []).map((o: { key?: string }) => String(o.key || '')).filter(Boolean).sort().reverse();
   return { ok: true, keys } as const;
 }
 
@@ -75,8 +85,21 @@ export async function restorePostsFromR2(key: string) {
   if (!obj) return { ok: false, error: 'backup_not_found' } as const;
 
   const text = await obj.text();
-  const parsed = JSON.parse(text) as { posts?: any[] };
-  const posts = Array.isArray(parsed.posts) ? parsed.posts : [];
+  type RestorePost = {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt?: string;
+    content: string;
+    published?: boolean;
+    publishedAt?: string | null;
+    coverImage?: string | null;
+    backgroundImage?: string | null;
+    author?: { id?: string | null } | null;
+    tags?: string[];
+  };
+  const parsed = JSON.parse(text) as { posts?: RestorePost[] };
+  const posts: RestorePost[] = Array.isArray(parsed.posts) ? parsed.posts : [];
 
   let upserts = 0;
   for (const p of posts) {
@@ -90,7 +113,7 @@ export async function restorePostsFromR2(key: string) {
       publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
       cover_image: p.coverImage || null,
       background_image: p.backgroundImage || null,
-      authorId: String((exists as any)?.authorId || p?.author?.id || '')
+      authorId: String((exists as { authorId?: string | null } | null)?.authorId || p?.author?.id || '')
     };
 
     if (!payload.authorId) continue;

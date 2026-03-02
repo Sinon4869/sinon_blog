@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const VERSION_KEY = 'cache:version:content';
 
 type KvLike = {
@@ -7,13 +5,17 @@ type KvLike = {
   put: (key: string, value: string, opts?: { expirationTtl?: number }) => Promise<void>;
 };
 
+type CloudflareContextLike = { env?: { CACHE_KV?: KvLike } };
+
 async function getKv(): Promise<KvLike | null> {
   try {
-    const mod = (await import('@opennextjs/cloudflare')) as { getCloudflareContext?: (opts: { async: boolean }) => Promise<any> };
+    const mod = (await import('@opennextjs/cloudflare')) as {
+      getCloudflareContext?: (opts: { async: boolean }) => Promise<CloudflareContextLike>;
+    };
     const fn = mod.getCloudflareContext;
     if (!fn) return null;
     const ctx = await fn({ async: true });
-    return ((ctx?.env as any)?.CACHE_KV || null) as KvLike | null;
+    return ctx?.env?.CACHE_KV || null;
   } catch {
     return null;
   }
