@@ -315,12 +315,15 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
           <input className="input" name="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="一句话摘要（可选）" />
           <input type="hidden" name="tags" value={tags} />
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">分类（下拉选择）</p>
+          <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-zinc-700">分类（下拉选择）</p>
+              <span className="text-xs text-zinc-500">已选 {selectedCategories.length}</span>
+            </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input className="input" value={categoryQuery} onChange={(e) => setCategoryQuery(e.target.value)} placeholder="搜索分类..." />
-              <select className="input" value={categoryToAdd} onChange={(e) => setCategoryToAdd(e.target.value)}>
+            <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+              <input className="input h-10" value={categoryQuery} onChange={(e) => setCategoryQuery(e.target.value)} placeholder="搜索分类..." />
+              <select className="input h-10" value={categoryToAdd} onChange={(e) => setCategoryToAdd(e.target.value)}>
                 <option value="">请选择分类</option>
                 {filteredOptions.map((name) => (
                   <option key={name} value={name}>
@@ -330,34 +333,36 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
               </select>
               <button
                 type="button"
-                className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                className="h-10 rounded-md border border-[var(--line-strong)] bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
                 onClick={addSelectedCategory}
               >
                 添加到文章
               </button>
             </div>
 
-            <div className="space-y-2">
-              {selectedCategories.length === 0 && <span className="text-xs text-zinc-500">尚未选择分类</span>}
-              {selectedCategories.map((name) => (
-                <div key={name} className="flex items-center gap-2">
-                  <span className="rounded-full border border-[var(--bg-ink)] bg-[var(--bg-ink)] px-3 py-1 text-xs tracking-wide text-white">#{name}</span>
-                  <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => moveCategory(name, -1)}>
-                    ↑
-                  </button>
-                  <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => moveCategory(name, 1)}>
-                    ↓
-                  </button>
-                  <button type="button" className="rounded border px-2 py-0.5 text-xs text-red-700" onClick={() => removeCategory(name)}>
-                    移除
-                  </button>
-                </div>
-              ))}
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-2">
+              {selectedCategories.length === 0 && <span className="px-1 text-xs text-zinc-500">尚未选择分类</span>}
+              <div className="flex flex-wrap gap-2">
+                {selectedCategories.map((name) => (
+                  <div key={name} className="flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-100 pr-1">
+                    <span className="rounded-full bg-[var(--bg-ink)] px-2.5 py-1 text-xs tracking-wide text-white">#{name}</span>
+                    <button type="button" className="rounded px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-200" onClick={() => moveCategory(name, -1)}>
+                      ↑
+                    </button>
+                    <button type="button" className="rounded px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-200" onClick={() => moveCategory(name, 1)}>
+                      ↓
+                    </button>
+                    <button type="button" className="rounded px-1.5 py-0.5 text-[11px] text-red-700 hover:bg-red-50" onClick={() => removeCategory(name)}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="grid gap-2 md:grid-cols-[1fr_auto]">
               <input
-                className="input"
+                className="input h-10"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="没有合适分类？新增一个"
@@ -370,7 +375,7 @@ export function WriteEditor({ action, post, availableCategories = [] }: WriteEdi
               />
               <button
                 type="button"
-                className="rounded-md border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                className="h-10 rounded-md border border-[var(--line-strong)] bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
                 onClick={addCustomCategory}
               >
                 新增并选中
