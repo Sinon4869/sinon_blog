@@ -120,12 +120,29 @@ export function PostReadingEnhancements({ containerId = 'post-content' }: { cont
 
       const code = pre.querySelector('code');
       const className = code?.className || '';
-      const lang = (className.match(/language-([a-zA-Z0-9]+)/)?.[1] || 'text').toLowerCase();
+      const langFromClass = className.match(/language-([a-zA-Z0-9]+)/)?.[1];
+      const langFromAttr = code?.getAttribute('data-language') || pre.getAttribute('data-language') || '';
+      const lang = (langFromClass || langFromAttr || 'text').toLowerCase();
 
-      const raw = normalizeCodeText(code?.textContent || pre.innerText || '');
+      const extractCodeText = () => {
+        const text = code?.textContent || pre.innerText || '';
+        if (text.includes('\n')) return text;
+        const html = code?.innerHTML || '';
+        if (!html) return text;
+        return html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/(div|p|li|tr|h[1-6])>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&');
+      };
+
+      const raw = normalizeCodeText(extractCodeText());
       if (code) code.textContent = raw;
 
-      if (code && !code.classList.contains('hljs')) {
+      if (code) {
         try {
           const hljs = (await import('highlight.js')).default;
           if (lang !== 'text' && hljs.getLanguage(lang)) {
